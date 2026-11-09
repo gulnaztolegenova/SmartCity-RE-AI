@@ -1,0 +1,308 @@
+{
+  "hourly_metrics": [
+    {
+      "target": "kWh_solar_power_solar",
+      "model": "DP-STH++ weather-v1",
+      "MAE": 259.46177805605214,
+      "RMSE": 519.9070120606698,
+      "R2": 0.7604943570335374
+    },
+    {
+      "target": "kWh_solar_power_solar",
+      "model": "weather reference",
+      "MAE": 283.8574327484064,
+      "RMSE": 600.9014238266561,
+      "R2": 0.6800582863289071
+    },
+    {
+      "target": "kWh_wind_power_wind",
+      "model": "DP-STH++ weather-v1",
+      "MAE": 160.02471672074245,
+      "RMSE": 233.12240379312155,
+      "R2": 0.9555115046847035
+    },
+    {
+      "target": "kWh_wind_power_wind",
+      "model": "weather reference",
+      "MAE": 275.30465555794916,
+      "RMSE": 391.66318454501396,
+      "R2": 0.8744244197189422
+    }
+  ],
+  "conditional_horizon_blocks": [
+    {
+      "horizon_hours": 168,
+      "origin_offset": 0,
+      "target": "kWh_solar_power_solar",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 1573.5131639684278,
+      "RMSE": 1819.156444704229,
+      "R2": 0.966000387326075
+    },
+    {
+      "horizon_hours": 168,
+      "origin_offset": 0,
+      "target": "kWh_wind_power_wind",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 4322.107291076439,
+      "RMSE": 4621.71777928402,
+      "R2": 0.9044796827559302
+    },
+    {
+      "horizon_hours": 168,
+      "origin_offset": 168,
+      "target": "kWh_solar_power_solar",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 4094.5377631292567,
+      "RMSE": 5748.105449217548,
+      "R2": 0.7414124614600472
+    },
+    {
+      "horizon_hours": 168,
+      "origin_offset": 168,
+      "target": "kWh_wind_power_wind",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 4874.954784800277,
+      "RMSE": 5197.112505026728,
+      "R2": 0.8749482771409488
+    },
+    {
+      "horizon_hours": 168,
+      "origin_offset": 336,
+      "target": "kWh_solar_power_solar",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 4297.421670142191,
+      "RMSE": 5155.186257039466,
+      "R2": 0.4147186741015324
+    },
+    {
+      "horizon_hours": 168,
+      "origin_offset": 336,
+      "target": "kWh_wind_power_wind",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 4439.561356110494,
+      "RMSE": 4961.456515115401,
+      "R2": 0.9282813782697668
+    },
+    {
+      "horizon_hours": 168,
+      "origin_offset": 504,
+      "target": "kWh_solar_power_solar",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 6696.6397154193855,
+      "RMSE": 8146.004912828407,
+      "R2": -0.20661305897428117
+    },
+    {
+      "horizon_hours": 168,
+      "origin_offset": 504,
+      "target": "kWh_wind_power_wind",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 3353.145684203002,
+      "RMSE": 3779.448982818237,
+      "R2": 0.9607843132203129
+    },
+    {
+      "horizon_hours": 168,
+      "origin_offset": 672,
+      "target": "kWh_solar_power_solar",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 4713.32985774285,
+      "RMSE": 6992.812834639465,
+      "R2": 0.32029880342357364
+    },
+    {
+      "horizon_hours": 168,
+      "origin_offset": 672,
+      "target": "kWh_wind_power_wind",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 2864.771477044232,
+      "RMSE": 3273.3714008602064,
+      "R2": 0.9774041068306065
+    },
+    {
+      "horizon_hours": 168,
+      "origin_offset": 840,
+      "target": "kWh_solar_power_solar",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 5061.531977220239,
+      "RMSE": 6391.162159887908,
+      "R2": 0.5554082580109794
+    },
+    {
+      "horizon_hours": 168,
+      "origin_offset": 840,
+      "target": "kWh_wind_power_wind",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 3647.5778995034893,
+      "RMSE": 3983.810277472279,
+      "R2": 0.8766031611223729
+    },
+    {
+      "horizon_hours": 168,
+      "origin_offset": 1008,
+      "target": "kWh_solar_power_solar",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 5868.366758324426,
+      "RMSE": 6347.585081796466,
+      "R2": 0.14057182848147243
+    },
+    {
+      "horizon_hours": 168,
+      "origin_offset": 1008,
+      "target": "kWh_wind_power_wind",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 4356.093481143897,
+      "RMSE": 4480.397609124962,
+      "R2": 0.854303890181429
+    },
+    {
+      "horizon_hours": 168,
+      "origin_offset": 1176,
+      "target": "kWh_solar_power_solar",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 5602.362343374819,
+      "RMSE": 5888.27744557964,
+      "R2": 0.17595437431705274
+    },
+    {
+      "horizon_hours": 168,
+      "origin_offset": 1176,
+      "target": "kWh_wind_power_wind",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 1936.718945405248,
+      "RMSE": 2200.8621887631466,
+      "R2": 0.9487496066738806
+    },
+    {
+      "horizon_hours": 168,
+      "origin_offset": 1344,
+      "target": "kWh_solar_power_solar",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 8844.6993459102,
+      "RMSE": 9724.163242050967,
+      "R2": -5.798581853908633
+    },
+    {
+      "horizon_hours": 168,
+      "origin_offset": 1344,
+      "target": "kWh_wind_power_wind",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 1588.5418523303813,
+      "RMSE": 2068.565370319162,
+      "R2": 0.9733771025892111
+    },
+    {
+      "horizon_hours": 168,
+      "origin_offset": 1512,
+      "target": "kWh_solar_power_solar",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 6765.250056894825,
+      "RMSE": 7477.552468745008,
+      "R2": -0.45641665273956256
+    },
+    {
+      "horizon_hours": 168,
+      "origin_offset": 1512,
+      "target": "kWh_wind_power_wind",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 907.1792653247501,
+      "RMSE": 1129.878947055611,
+      "R2": 0.9902928752682457
+    },
+    {
+      "horizon_hours": 336,
+      "origin_offset": 0,
+      "target": "kWh_solar_power_solar",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 2834.025463548842,
+      "RMSE": 4263.217471912112,
+      "R2": 0.8484205816102814
+    },
+    {
+      "horizon_hours": 336,
+      "origin_offset": 0,
+      "target": "kWh_wind_power_wind",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 4598.531037938357,
+      "RMSE": 4917.837615317082,
+      "R2": 0.8974407131648006
+    },
+    {
+      "horizon_hours": 336,
+      "origin_offset": 336,
+      "target": "kWh_solar_power_solar",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 5497.030692780789,
+      "RMSE": 6816.646587017444,
+      "R2": 0.14152435477942704
+    },
+    {
+      "horizon_hours": 336,
+      "origin_offset": 336,
+      "target": "kWh_wind_power_wind",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 3896.353520156748,
+      "RMSE": 4410.231590580413,
+      "R2": 0.945662874462059
+    },
+    {
+      "horizon_hours": 336,
+      "origin_offset": 672,
+      "target": "kWh_solar_power_solar",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 4887.430917481544,
+      "RMSE": 6698.745595045445,
+      "R2": 0.4891865720100784
+    },
+    {
+      "horizon_hours": 336,
+      "origin_offset": 672,
+      "target": "kWh_wind_power_wind",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 3256.174688273861,
+      "RMSE": 3645.9364129715195,
+      "R2": 0.9643089178440398
+    },
+    {
+      "horizon_hours": 336,
+      "origin_offset": 1008,
+      "target": "kWh_solar_power_solar",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 5735.364550849622,
+      "RMSE": 6122.240098475678,
+      "R2": 0.16084196673245044
+    },
+    {
+      "horizon_hours": 336,
+      "origin_offset": 1008,
+      "target": "kWh_wind_power_wind",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 3146.4062132745726,
+      "RMSE": 3529.7136647170114,
+      "R2": 0.9415562978791674
+    },
+    {
+      "horizon_hours": 336,
+      "origin_offset": 1344,
+      "target": "kWh_solar_power_solar",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 7804.974701402513,
+      "RMSE": 8673.901708023031,
+      "R2": -1.876289914438659
+    },
+    {
+      "horizon_hours": 336,
+      "origin_offset": 1344,
+      "target": "kWh_wind_power_wind",
+      "metric_unit": "sum of source units per 24 hours",
+      "MAE": 1247.8605588275657,
+      "RMSE": 1666.6717022681983,
+      "R2": 0.9811857097009763
+    }
+  ],
+  "serialization_parity": true,
+  "promotion_gate_passed": true,
+  "quality_model": "DualAxis / weather-v1",
+  "actual_forecast_7_14_day_accuracy_validated": false
+}

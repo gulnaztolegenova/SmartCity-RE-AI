@@ -1,0 +1,9 @@
+{
+  "seconds": 162.46619216699764,
+  "epochs": 16,
+  "best_epoch": 16,
+  "parameter_count": 451105,
+  "torch": "2.11.0",
+  "device": "CPU",
+  "fit_windows": 872
+}

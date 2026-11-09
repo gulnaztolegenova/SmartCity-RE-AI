@@ -1,0 +1,113 @@
+{
+  "cols": [
+    "surface_irradiance_solar",
+    "toa_irradiance_solar",
+    "temperature_solar",
+    "humidity_solar",
+    "relative_humidity_solar",
+    "specific_humidity_solar",
+    "wind_speed_wind",
+    "air_density_wind",
+    "kWh_solar_power_solar",
+    "kWh_wind_power_wind"
+  ],
+  "q_low": 0.01,
+  "q_high": 0.99,
+  "winsorize": true,
+  "sign_log1p": true,
+  "fit_obs_ids_hash": "202254a99623bbbd696211226c25b3e85988eb8a0bc6f1133267723a8c1e7fd9",
+  "fit_start": "2019-01-01 08:00:00",
+  "fit_end": "2019-09-19 20:00:00",
+  "features": {
+    "surface_irradiance_solar": {
+      "clip_lo": 0.0,
+      "clip_hi": 780.5337199999992,
+      "median": 36.753,
+      "min": 0.0,
+      "max": 6.661258296723397,
+      "denom": 6.661258296723397,
+      "constant": false
+    },
+    "toa_irradiance_solar": {
+      "clip_lo": 0.0,
+      "clip_hi": 1170.7295199999999,
+      "median": 118.236,
+      "min": 0.0,
+      "max": 7.066236158519071,
+      "denom": 7.066236158519071,
+      "constant": false
+    },
+    "temperature_solar": {
+      "clip_lo": -25.66804,
+      "clip_hi": 26.833439999999992,
+      "median": 8.599,
+      "min": -3.2834658446796925,
+      "max": 3.3262381755166857,
+      "denom": 6.609704020196379,
+      "constant": false
+    },
+    "humidity_solar": {
+      "clip_lo": 0.0,
+      "clip_hi": 0.016,
+      "median": 0.005,
+      "min": 0.0,
+      "max": 0.01587334915629015,
+      "denom": 0.01587334915629015,
+      "constant": false
+    },
+    "relative_humidity_solar": {
+      "clip_lo": 0.0,
+      "clip_hi": 1.6,
+      "median": 0.5,
+      "min": 0.0,
+      "max": 0.9555114450274363,
+      "denom": 0.9555114450274363,
+      "constant": false
+    },
+    "specific_humidity_solar": {
+      "clip_lo": 0.0,
+      "clip_hi": 0.016,
+      "median": 0.005,
+      "min": 0.0,
+      "max": 0.01587334915629015,
+      "denom": 0.01587334915629015,
+      "constant": false
+    },
+    "wind_speed_wind": {
+      "clip_lo": 1.22152,
+      "clip_hi": 13.130999999999984,
+      "median": 5.994,
+      "min": 0.7981916462792509,
+      "max": 2.648370965600608,
+      "denom": 1.850179319321357,
+      "constant": false
+    },
+    "air_density_wind": {
+      "clip_lo": 1.118,
+      "clip_hi": 1.374,
+      "median": 1.188,
+      "min": 0.7504722471792148,
+      "max": 0.8645762961874763,
+      "denom": 0.11410404900826154,
+      "constant": false
+    },
+    "kWh_solar_power_solar": {
+      "clip_lo": 0.0,
+      "clip_hi": 4232.919,
+      "median": 142.314,
+      "min": 0.0,
+      "max": 8.350883320666277,
+      "denom": 8.350883320666277,
+      "constant": false
+    },
+    "kWh_wind_power_wind": {
+      "clip_lo": 0.17751999999999998,
+      "clip_hi": 4668.310559999997,
+      "median": 1101.325,
+      "min": 0.16341053190219418,
+      "max": 8.448766708072663,
+      "denom": 8.285356176170469,
+      "constant": false
+    }
+  }
+}

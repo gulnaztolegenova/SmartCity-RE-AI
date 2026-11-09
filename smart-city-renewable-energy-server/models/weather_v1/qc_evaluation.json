@@ -1,0 +1,9 @@
+{
+  "n": 72,
+  "threshold": 0.5882505548000334,
+  "unmodified_exceedance_fraction": 0.0,
+  "artificial_temperature_spike_exceedance_fraction": 0.4027777777777778,
+  "median_clean_score": 0.41522426903247833,
+  "median_spike_score": 0.5699093043804169,
+  "limitation": "Artificial perturbation only; no labelled real faults or forecast-error calibration"
+}

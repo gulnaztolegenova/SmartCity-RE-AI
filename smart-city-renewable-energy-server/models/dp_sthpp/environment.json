@@ -1,0 +1,17 @@
+{
+  "python": "3.10.20",
+  "tensorflow": "2.18.1",
+  "scipy": "1.14.1",
+  "python_executable": "<research-root>/Gulnaz_T_N1_DP-STH++/Server_Training/.venv-dp-sthpp/bin/python",
+  "execution_backend": "CPU",
+  "keras": "3.12.1",
+  "numpy": "2.0.2",
+  "pandas": "2.3.3",
+  "scikit_learn": "1.7.2",
+  "platform": "macOS-27.0.1-arm64-arm-64bit",
+  "physical_devices": [
+    "PhysicalDevice(name='/physical_device:CPU:0', device_type='CPU')",
+    "PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')"
+  ],
+  "font_path": "/System/Library/Fonts/Supplemental/Times New Roman.ttf"
+}

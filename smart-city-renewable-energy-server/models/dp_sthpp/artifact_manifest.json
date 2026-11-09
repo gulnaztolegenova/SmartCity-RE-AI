@@ -1,0 +1,64 @@
+{
+  "run_id": "dp-sthpp-v3-csv-cpu-20261013T143156623652Z",
+  "model_name": "DP-STH++",
+  "variant": "fixed_v3",
+  "weights_sha256": "122967a1dae455cdfd5a9df258ede46b82f60e955e4abb6c0f44dccb63155ee4",
+  "source_data_sha256": "2771dd8b57aa43bc79944a9e8b2eb72d1214674056e601b997038fea164f1204",
+  "protocol_sha256": "ae66e5044b4b783acd5b3463e723fdd24b62a527d94d2de2f01fe88aa825068b",
+  "architecture_source_sha256": "0fa9685c11a829f90c07b2365324f3020410b07bf6ba269d33cf9a917167a888",
+  "training": {
+    "epochs_executed": 28,
+    "best_validation_epoch": 28,
+    "best_validation_loss": -1.046019196510315,
+    "training_seconds": 440.2516328749916,
+    "selection_data": "inner validation only",
+    "restored_best_weights": true
+  },
+  "historical_holdout_metrics": [
+    {
+      "target": "kWh_solar_power_solar",
+      "n": 1746,
+      "RMSE_source_units": 344.2418186210095,
+      "MAE_source_units": 192.66455078125,
+      "R2": 0.8948397636413574,
+      "AUC_extreme_q90": 0.9944384600039896,
+      "Brier_score": 0.01215541307132849,
+      "negative_raw_prediction_count": 687
+    },
+    {
+      "target": "kWh_wind_power_wind",
+      "n": 1746,
+      "RMSE_source_units": 282.1314520750921,
+      "MAE_source_units": 192.43572998046875,
+      "R2": 0.935765266418457,
+      "AUC_extreme_q90": 0.9900509545923633,
+      "Brier_score": 0.0352502897195166,
+      "negative_raw_prediction_count": 23
+    }
+  ],
+  "requires_past_measured_generation": true,
+  "forecast_steps_validated": 1,
+  "raw_prediction_units": "unverified source units",
+  "deployment_status": "exported locally; not deployed",
+  "reload_verified": true,
+  "files": {
+    "artifacts/architecture_source.txt": "0fa9685c11a829f90c07b2365324f3020410b07bf6ba269d33cf9a917167a888",
+    "artifacts/architecture_spec.json": "219f885c1739083bc27232d7463ca20df6cdf4e1b47426912dfae1fe8d42736b",
+    "artifacts/dp_sthpp.weights.h5": "122967a1dae455cdfd5a9df258ede46b82f60e955e4abb6c0f44dccb63155ee4",
+    "artifacts/preprocessing.json": "f1fe2d6b00fa0f0d3ffaeeea8e7a19c45dd6c5f47f5491b67bd1015318e0dd0f",
+    "artifacts/reload_examples.json": "87751b75676121c835e843d8ad36673d3893ababf759ed6b4163f53e3bd4bac2",
+    "environment.json": "f6522281b6d0e0c6c75c179d41567803a5d8a7be2ad0db05e582bc17825c4fe3",
+    "figures/training_curve.pdf": "bcba21dbec94ae2157351d9d89ac40dbb1da13b0bd69a41ac9a67196b166dc09",
+    "figures/training_curve.png": "1cf5dfb666fa3355fc7efe9e84367883f8dd0071d026902a77c47d5656031599",
+    "protocol.json": "ae66e5044b4b783acd5b3463e723fdd24b62a527d94d2de2f01fe88aa825068b",
+    "reload_validation.json": "ee882baaed0303010843e080eae89032bebf9842d5024ba53e7618f00f54d8a9",
+    "source_validation.json": "a4718b84d36e77833755905cd120406d83546e120df4114d549799e9bf94f474",
+    "tables/feature_quality.csv": "0d76fea06f4f7d6053a1d422adaf90789c4befcb29ed6fa63c4eb7d7d1a24905",
+    "tables/historical_holdout_metrics.csv": "2e6cfeae38e8d1378b6af74f5cd6abe40ec85339a170ead70589f147f7e1e67b",
+    "tables/historical_holdout_predictions.csv": "8405688d686c116c8dc536c06bc20804e3b2f07f8ce6755b98d090946d88e508",
+    "tables/split_manifest.csv": "36b978a55a8a21e6bc03c0694733f256522b17eacf19731ce6984f4244d0de2d",
+    "tables/timestamp_conflicts.csv": "5e381ec2c4f2c20399bb0bb592e17fa3ee41a081177831a18b1384235b1a53d2",
+    "tables/training_history.csv": "f366144fda019a00c356b61ceb993020aed2290ddf2cc8d5adc99224e7233bff",
+    "training_summary.json": "3d4ae6f341c713c2325f064e17793817138e1cde1e584b0718736a933d821283"
+  }
+}

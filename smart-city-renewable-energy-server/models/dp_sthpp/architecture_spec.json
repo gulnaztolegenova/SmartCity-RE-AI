@@ -1,0 +1,52 @@
+{
+  "model_name": "DP-STH++",
+  "keras_model_name": "DP_STHPP",
+  "constructor": "build_dp_sthpp",
+  "constructor_source_sha256": "0fa9685c11a829f90c07b2365324f3020410b07bf6ba269d33cf9a917167a888",
+  "parameters": {
+    "lr": 0.0006,
+    "units": 128,
+    "d_model": 160,
+    "dropout": 0.15,
+    "cls_weight": 0.45
+  },
+  "input_shapes": {
+    "seq": [
+      24,
+      12
+    ],
+    "flat": [
+      12
+    ]
+  },
+  "outputs": [
+    "solar_reg",
+    "wind_reg",
+    "solar_ext",
+    "wind_ext"
+  ],
+  "parameter_count": 831730,
+  "serialization": "HDF5 weights; rebuild the verified constructor; do not deserialize Lambda bytecode",
+  "feature_order": [
+    "temperature_solar",
+    "relative_humidity_solar",
+    "surface_irradiance_solar",
+    "toa_irradiance_solar",
+    "air_density_wind",
+    "wind_speed_wind",
+    "hour",
+    "dayofweek",
+    "month",
+    "season_code",
+    "kWh_solar_power_solar",
+    "kWh_wind_power_wind"
+  ],
+  "target_order": [
+    "kWh_solar_power_solar",
+    "kWh_wind_power_wind"
+  ],
+  "tensorflow": "2.18.1",
+  "keras": "3.12.1",
+  "constructor_documentation": "architecture_source.txt",
+  "constructor_documentation_sha256": "0fa9685c11a829f90c07b2365324f3020410b07bf6ba269d33cf9a917167a888"
+}

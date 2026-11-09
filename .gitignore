@@ -1,0 +1,29 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+web/canvaskit/
+
+# IDE and OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv*/
+venv/
+.env
+.env.*
+
+# Generated outputs
+experiments/weather_models/outputs/
+smart-city-renewable-energy-server/validation/
+*.log

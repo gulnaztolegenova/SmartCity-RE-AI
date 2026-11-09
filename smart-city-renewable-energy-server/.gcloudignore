@@ -1,0 +1,15 @@
+# Exclude local tooling and caches from Cloud Run source upload.
+.venv/
+.venv*/
+validation/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+
+# Local logs/tmp
+*.log
+tmp/
+
+# Keep model artifacts in models/ (required at runtime).

@@ -1,0 +1,41 @@
+{
+  "model_name": "DP-STH++",
+  "model_version": "weather-v1-20261029",
+  "quality_model": "DualAxis",
+  "quality_version": "weather-v1-20261029",
+  "source_dataset_sha256": "2771dd8b57aa43bc79944a9e8b2eb72d1214674056e601b997038fea164f1204",
+  "created_at_utc": "2026-10-29T15:48:36.172766+00:00",
+  "architecture_changes": [
+    "Weather-only 24-hour windows ending at target hour",
+    "Weather reference residual heads replace measured generation skip connections",
+    "DualAxis temporal then feature attention with 12 weather features",
+    "Fixed multi-task MSE/BCE weights; no original uncertainty loss-scale layer"
+  ],
+  "preserved_architecture": [
+    "LSTM",
+    "GRU",
+    "causal dilated Conv1D",
+    "causal Transformer",
+    "context gating",
+    "residual regression and extreme heads"
+  ],
+  "source_urls": [
+    "https://data.mendeley.com/datasets/gxc6j5btrx/1",
+    "https://open-meteo.com/en/docs"
+  ],
+  "files": {
+    "dp_weather.weights.h5": "823af4103958dd05a9d4683c020bef246d72bcb9359a9f760027703f5b40d3e0",
+    "dualaxis_weather.pt": "66ec147e123f95f33c9c24ad383ceb9bc2f7219eccf3e2e9247573a51278057f",
+    "preprocessing.json": "3b24cb924c4d4ef23061e2d89f9ce72433ec732abe20b471c93b566a93ddf59a",
+    "protocol_before_training.json": "f074f25af2584053cce7f181203e5f039f7ddc88ffa4a14214836a6afa0c502f",
+    "dp_training.json": "e20f5a9b0d48193d72398e28a8b4e34b244cf625eda4dbbccba4cc773074f890",
+    "qc_training.json": "abeb98c916b5f3bc3b81aedbac4da574e13d5415cc94d17d52e442a8ec905389",
+    "qc_calibration.json": "67b9ba55a9527792bba6042c24ad0fa2fd78c90af1131dda364250bf158bc83f",
+    "evaluation.json": "aa717006b0b30cbc62ccf221c1eeaa6ba7a4392eb4b3849e4ad4ce80d65d24fa",
+    "qc_evaluation.json": "e9a8b35ccf15970130c0b4107739f3ed76e6158d6f7de22b5b693f175cf3cac3"
+  },
+  "code_sha256": {
+    "weather_features.py": "df3f5aee822cde7bd2e8358d80a664ceafd10abba7f08585cd38feffcb4ea5ce",
+    "weather_architectures.py": "b5dd396c701d5d808418743ba2778313757fafde3ab56aac225fbb2c96f73047"
+  }
+}

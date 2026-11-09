@@ -1,0 +1,79 @@
+{
+  "run_id": "dp-sthpp-v3-csv-cpu-20261013T143156623652Z",
+  "model_name": "DP-STH++",
+  "variant": "fixed_v3",
+  "seed": 42,
+  "execution_backend": "CPU",
+  "backend_recovery_reason": "Metal graph-mode Dense ReLU returned -13 for an expected zero; invalid GPU run preserved in Diagnostics",
+  "data_sha256": "2771dd8b57aa43bc79944a9e8b2eb72d1214674056e601b997038fea164f1204",
+  "original_notebook_sha256": "b1c86eef20f25ebbd52120f5ddb3d343b9943ecf8f122b55593a66d9b8d575fd",
+  "architecture_source_sha256": "0fa9685c11a829f90c07b2365324f3020410b07bf6ba269d33cf9a917167a888",
+  "features": [
+    "temperature_solar",
+    "relative_humidity_solar",
+    "surface_irradiance_solar",
+    "toa_irradiance_solar",
+    "air_density_wind",
+    "wind_speed_wind",
+    "hour",
+    "dayofweek",
+    "month",
+    "season_code",
+    "kWh_solar_power_solar",
+    "kWh_wind_power_wind"
+  ],
+  "targets": [
+    "kWh_solar_power_solar",
+    "kWh_wind_power_wind"
+  ],
+  "lookback_rows": 24,
+  "horizon_rows": 1,
+  "step_minutes": 60,
+  "extreme_quantile": 0.9,
+  "model_config": {
+    "lr": 0.0006,
+    "units": 128,
+    "d_model": 160,
+    "dropout": 0.15,
+    "cls_weight": 0.45
+  },
+  "training_config": {
+    "epochs": 28,
+    "batch_size": 128,
+    "patience": 7,
+    "shuffle": false,
+    "verbose": 1
+  },
+  "outer_development_ratio": 0.8,
+  "inner_fit_ratio": 0.8,
+  "duplicate_policy": "stable original CSV row order; keep first occurrence of a timestamp; archive all conflicts",
+  "calendar_policy": "source naive local clock retained; source timezone unspecified",
+  "season_codes": {
+    "spring": 0,
+    "summer": 1,
+    "autumn": 2,
+    "winter": 3
+  },
+  "target_units": "unverified source units",
+  "input_contract": "24 past measured rows including solar and wind generation; next-hour outputs",
+  "holdout_status": "retrospective previously examined; not an independent unseen test",
+  "protocol_changes_from_source": [
+    "canonical CSV replaces season-based Excel merge",
+    "fixed v3 only",
+    "separate chronological inner validation",
+    "scalers and extreme thresholds fit on inner-fit rows only",
+    "deterministic CSV duplicate keep-first policy",
+    "chronological batches without shuffling"
+  ],
+  "unsupported_claims": [
+    "validated 7/14-day recursive forecasting",
+    "new-site transfer accuracy",
+    "verified kWh conversion"
+  ],
+  "split_manifest_sha256": "36b978a55a8a21e6bc03c0694733f256522b17eacf19731ce6984f4244d0de2d",
+  "split_sizes": {
+    "fit": 5585,
+    "validation": 1397,
+    "historical_holdout": 1746
+  }
+}

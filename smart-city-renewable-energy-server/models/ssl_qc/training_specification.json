@@ -1,0 +1,20 @@
+{
+  "model": "DualAxis",
+  "condition": "FULL",
+  "seed": 42,
+  "epochs": 25,
+  "batch_size": 128,
+  "learning_rate": 0.0002,
+  "weight_decay": 0.0001,
+  "gradient_clip": 1.0,
+  "training_mask_rate": 0.15,
+  "validation_mask_rate": 0.15,
+  "validation_mask_seed": 314159,
+  "source_csv_sha256": "2771dd8b57aa43bc79944a9e8b2eb72d1214674056e601b997038fea164f1204",
+  "preprocessor_sha256": "6928855c004af1360324bb856285d11b0303a1512311ae932cfed4ba746385e4",
+  "fresh_initial_state_sha256": "6c959b95001f1c0e407c5191b3f934a3952afa06a8172acfc2362a390aeab16f",
+  "weights_initialized_from_scratch": true,
+  "original_checkpoint_reused": false,
+  "holdout_status": "retrospective_previously_inspected",
+  "notebook_source_sha256": "35cd34e7f625ba2fa3d06dc86c4a9c9e44d77ce2e0b2741a2f90fa6575b235e4"
+}

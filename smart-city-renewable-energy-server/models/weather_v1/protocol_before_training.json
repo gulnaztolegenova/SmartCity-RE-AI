@@ -1,0 +1,30 @@
+{
+  "seed": 42,
+  "source_sha256": "2771dd8b57aa43bc79944a9e8b2eb72d1214674056e601b997038fea164f1204",
+  "source_rows": 8752,
+  "split_boundaries": [
+    5251,
+    6564,
+    7001
+  ],
+  "split_counts": {
+    "fit": 5228,
+    "validation": 1290,
+    "calibration": 414,
+    "holdout": 1728
+  },
+  "split_gap_hours": 23,
+  "fit_scope": "first 60 percent of chronological rows only",
+  "checkpoint_selection": "validation only",
+  "qc_threshold_scope": "separate calibration block",
+  "holdout_status": "retrospective same source, previously explored by original research",
+  "dp_epochs_max": 35,
+  "qc_epochs_max": 16,
+  "promotion_gate": "finite nonnegative outputs and positive holdout R2 for both generation targets",
+  "forecast_validation": "weather-conditional reconstruction of 168/336-hour blocks; no archived forecast weather available",
+  "limitations": [
+    "Source units/capacity/location/timezone not established",
+    "No measured new-site energy calibration",
+    "Weather forecasts have additional lead-time error absent from retrospective conditional metrics"
+  ]
+}

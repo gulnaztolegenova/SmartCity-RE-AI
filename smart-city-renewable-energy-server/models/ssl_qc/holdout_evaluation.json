@@ -1,0 +1,12 @@
+{
+  "run_id": "dualaxis-full-seed42-20261013T144409613629Z",
+  "status": "evaluated_once_after_freeze",
+  "windows": 1728,
+  "mask_rate": 0.3,
+  "mask_seed": 424242,
+  "reference_cutoff": 3.2255731055094277,
+  "fraction_above_reference_cutoff": 0.7314814814814815,
+  "interpretation": "Reference exceedance is diagnostic distribution shift, not fault prevalence or calibrated fault probability",
+  "metrics_sha256": "3c8e18b7a3d075a83efa67bb9d563fe55e62c492fffa71a2ab2ee3324174f6af",
+  "predictions_sha256": "592da37550cbc0a30de50db2346cd2ffbe6ac086103fcd80c8c167f00d025462"
+}

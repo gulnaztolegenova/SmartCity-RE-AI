@@ -1,0 +1,10 @@
+{
+  "status": "complete",
+  "run_id": "dualaxis-full-seed42-20261013T144409613629Z",
+  "export_directory": "<research-root>/Gulnaz_T_N2_DualAxis/Server_Export/dualaxis-full-seed42-20261013T144409613629Z",
+  "provenance_sha256": "4862b49fdd2722974c0ce725b857c2a7f7ee4436b35d6e8e8e6be06d72e3ccc7",
+  "fresh_training_completed": true,
+  "new_qc_calibration_completed": true,
+  "cpu_roundtrip_verified": true,
+  "original_files_unchanged": true
+}

@@ -1,0 +1,15 @@
+{
+  "python": "3.11.15",
+  "torch": "2.11.0",
+  "numpy": "2.4.4",
+  "pandas": "2.3.3",
+  "scikit_learn": "1.8.0",
+  "joblib": "1.5.3",
+  "machine": "arm64",
+  "system": "Darwin",
+  "device": "mps",
+  "font_path": "/System/Library/Fonts/Supplemental/Times New Roman.ttf",
+  "notebook_source_sha256": "35cd34e7f625ba2fa3d06dc86c4a9c9e44d77ce2e0b2741a2f90fa6575b235e4",
+  "fresh_training": true,
+  "completed": false
+}

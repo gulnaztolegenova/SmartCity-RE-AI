@@ -1,0 +1,658 @@
+# Notebook cell: setup-audit
+from pathlib import Path
+from datetime import datetime, timezone
+from typing import Optional
+import copy, hashlib, io, json, math, os, platform, random, time
+import joblib, numpy as np, pandas as pd, torch, yaml, sklearn
+from torch import nn
+from torch.utils.data import DataLoader, TensorDataset
+from sklearn.preprocessing import RobustScaler
+from sklearn.decomposition import PCA
+from sklearn.mixture import GaussianMixture
+from sklearn.cluster import KMeans
+from IPython.display import display, HTML, Markdown
+import matplotlib.pyplot as plt
+from matplotlib import font_manager
+
+
+ROOT = Path('<research-root>/Gulnaz_T_N2_DualAxis').resolve()
+INPUT = ROOT / 'renewables_combined_FULL.csv'
+NOTEBOOK = ROOT / 'Server_Training/01_train_dualaxis_server.ipynb'
+EXPECTED_DATA_SHA = '2771dd8b57aa43bc79944a9e8b2eb72d1214674056e601b997038fea164f1204'
+EXPECTED_CONFIG_SHA = 'f06065096022eaae047ae0ea28b762893e889313532e7daa1f0153c139d4a870'
+
+
+def sha256(path):
+    h = hashlib.sha256()
+    with Path(path).open('rb') as stream:
+        for chunk in iter(lambda: stream.read(2**20), b''): h.update(chunk)
+    return h.hexdigest()
+
+
+def save_json(path, value):
+    Path(path).write_text(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + '\n')
+
+
+def notebook_source_sha(path):
+    book = json.loads(Path(path).read_text())
+    sources = [c['source'] for c in book['cells'] if c['cell_type'] == 'code']
+    return hashlib.sha256(json.dumps(sources, ensure_ascii=False).encode()).hexdigest()
+
+
+assert INPUT.is_file(), 'The explicitly requested root CSV must exist; do not substitute another input.'
+assert sha256(INPUT) == EXPECTED_DATA_SHA
+assert sha256(ROOT / 'Data/renewables_combined_FULL.csv') == EXPECTED_DATA_SHA
+assert sha256(ROOT / 'Configs/experiment.yaml') == EXPECTED_CONFIG_SHA
+assert NOTEBOOK.is_file(), 'Save this training notebook at the declared path before execution.'
+CFG = yaml.safe_load((ROOT / 'Configs/experiment.yaml').read_text())
+SIGNAL_COLS, TIME_COLS, TARGETS = CFG['signal_cols'], CFG['time_cols'], CFG['targets']
+FEATURE_COLS = SIGNAL_COLS + TIME_COLS
+L, SEED = 24, 42
+assert len(FEATURE_COLS) == 13 and CFG['training']['epochs'] == 25
+assert CFG['qc']['mc_passes'] == 0
+original_files = [INPUT, ROOT / 'Data/renewables_combined_FULL.csv', ROOT / 'Configs/experiment.yaml',
+                  *sorted((ROOT / 'Notebooks').glob('*.ipynb'))]
+original_hashes = {str(p.relative_to(ROOT)): sha256(p) for p in original_files}
+RUN_ID = 'dualaxis-full-seed42-' + datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
+OUT = ROOT / 'Server_Export' / RUN_ID
+OUT.mkdir(parents=True, exist_ok=False)
+(OUT / 'Figures').mkdir()
+SOURCE_CODE_SHA = notebook_source_sha(NOTEBOOK)
+config_hash = hashlib.sha256(json.dumps(CFG, sort_keys=True).encode()).hexdigest()
+save_json(OUT / 'original_files_before.json', original_hashes)
+save_json(OUT / 'training_config.json', CFG)
+font_path = font_manager.findfont(font_manager.FontProperties(family='Times New Roman'), fallback_to_default=False)
+assert font_manager.FontProperties(fname=font_path).get_name() == 'Times New Roman'
+plt.rcParams.update({'font.family':'Times New Roman','font.size':18,'axes.titlesize':20,
+    'axes.labelsize':18,'xtick.labelsize':18,'ytick.labelsize':18,'legend.fontsize':18,
+    'figure.dpi':350,'savefig.dpi':350,'axes.unicode_minus':True,'pdf.fonttype':42})
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_colwidth', None)
+display(HTML('<style>table.dataframe, table.dataframe th, table.dataframe td {font-family: \"Times New Roman\"; font-size:18pt;}</style>'))
+torch.set_num_threads(4)
+device = torch.device('mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu')
+save_json(OUT / 'environment.json', {'python':platform.python_version(),'torch':str(torch.__version__),
+    'numpy':np.__version__,'pandas':pd.__version__,'scikit_learn':sklearn.__version__,'joblib':joblib.__version__,
+    'machine':platform.machine(),'system':platform.system(),'device':str(device),'font_path':font_path,
+    'notebook_source_sha256':SOURCE_CODE_SHA,'fresh_training':True,'completed':False})
+display(pd.DataFrame([{'Project':str(ROOT),'Input SHA256':sha256(INPUT),'Device':str(device),'Run':RUN_ID}]).T.rename(columns={0:'Value'}))
+display(Markdown('**Interpretation.** Canonical input identity and original-file hashes are fixed before fitting. The new run has its own export directory and cannot reuse a previous checkpoint.'))
+
+# Notebook cell: canonical-split
+raw = pd.read_csv(INPUT)
+assert raw.shape == (8753, 18)
+raw['source_row_id'] = np.arange(len(raw))
+raw['timestamp'] = pd.to_datetime(raw['timestamp'], errors='raise')
+duplicates = raw.loc[raw.timestamp.duplicated(keep=False)].copy()
+duplicates.to_csv(OUT / 'duplicate_timestamp_audit.csv', index=False)
+canonical = raw.sort_values('timestamp', kind='stable').drop_duplicates('timestamp', keep='first').reset_index(drop=True)
+canonical['obs_id'] = np.arange(len(canonical))
+canonical['hour'] = canonical.timestamp.dt.hour
+canonical['month'] = canonical.timestamp.dt.month
+canonical['doy'] = canonical.timestamp.dt.dayofyear
+assert len(canonical) == 8752 and np.isfinite(canonical[FEATURE_COLS].to_numpy(float)).all()
+assert np.all(np.diff(pd.DatetimeIndex(canonical.timestamp).as_unit("ns").asi8) == pd.Timedelta(hours=1).value)
+assert np.allclose(canonical.specific_humidity_solar, canonical.humidity_solar)
+assert np.allclose(canonical.relative_humidity_solar, 100 * canonical.humidity_solar)
+DEV_STOP = int(len(canonical) * CFG['split']['development_fraction'])
+VAL_START = int(DEV_STOP * (1 - CFG['split']['validation_fraction']))
+FIT_STOP = VAL_START - CFG['split']['purge_rows']
+assert (FIT_STOP, VAL_START, DEV_STOP) == (6277, 6300, 7001)
+fit_rows = canonical.iloc[:FIT_STOP].copy()
+val_rows = canonical.iloc[VAL_START:DEV_STOP].copy()
+roles = [('fit',0,FIT_STOP),('purged',FIT_STOP,VAL_START),('validation',VAL_START,DEV_STOP),
+         ('retrospective_holdout',DEV_STOP,len(canonical))]
+split_table = pd.DataFrame([{'Role':role,'Rows':stop-start,'Windows':max(0,stop-start-L+1) if role!='purged' else 0,
+    'Start':str(canonical.timestamp.iloc[start]),'End':str(canonical.timestamp.iloc[stop-1])} for role,start,stop in roles])
+split_table.to_csv(OUT / 'split_summary.csv', index=False)
+membership = pd.concat([canonical.iloc[start:stop][['obs_id','source_row_id','timestamp']].assign(role=role)
+                        for role,start,stop in roles], ignore_index=True)
+membership.to_csv(OUT / 'split_membership.csv', index=False)
+display(split_table)
+display(Markdown('**Interpretation.** There are 6,277 fit, 23 purged, 701 validation and 1,751 retrospective-holdout rows. Holdout features and targets have not been used to fit transformations or select weights.'))
+
+# Notebook cell: fit-preprocessing
+def fit_signal_preprocessor(frame: pd.DataFrame, signal_cols: list[str],
+                            q_low: float = 0.01, q_high: float = 0.99) -> dict:
+    """Fit every learned transformation on permitted fit rows only."""
+    if not 0 <= q_low < q_high <= 1: raise ValueError('Invalid quantiles.')
+    params={'cols':list(signal_cols),'q_low':q_low,'q_high':q_high,
+            'winsorize':bool(CFG['preprocessing']['winsorize']),
+            'sign_log1p':bool(CFG['preprocessing']['sign_log1p']),
+            'fit_obs_ids_hash':hashlib.sha256(frame.obs_id.to_numpy(np.int64).tobytes()).hexdigest(),
+            'fit_start':str(frame.timestamp.min()),'fit_end':str(frame.timestamp.max()),'features':{}}
+    for col in signal_cols:
+        s=frame[col].to_numpy(float)
+        if np.isinf(s).any(): raise ValueError('Inf is not a missing-value convention.')
+        observed=s[np.isfinite(s)]
+        if len(observed)<2: raise ValueError(f'No usable training values: {col}')
+        lo,hi=np.quantile(observed,[q_low,q_high]); median=float(np.median(observed))
+        transformed=np.clip(observed,lo,hi) if params['winsorize'] else observed.copy()
+        if params['sign_log1p']: transformed=np.sign(transformed)*np.log1p(np.abs(transformed))
+        low=float(transformed.min()); high=float(transformed.max())
+        # Same zero-span convention as original Fragment 6: use 1, not epsilon everywhere.
+        denominator=(high-low) if high>low else 1.0
+        params['features'][col]={'clip_lo':float(lo),'clip_hi':float(hi),'median':median,
+                               'min':low,'max':high,'denom':denominator,'constant':bool(high==low)}
+    return params
+
+def transform_frame(frame: pd.DataFrame, params: dict) -> pd.DataFrame:
+    """Keep row identity; never learn parameters or invent dates during transform."""
+    out=pd.DataFrame(index=frame.index)
+    for col in params['cols']:
+        p=params['features'][col]; a=frame[col].to_numpy(float)
+        if np.isinf(a).any(): raise ValueError('Infinite signal.')
+        if params['winsorize']: a=np.clip(a,p['clip_lo'],p['clip_hi'])
+        a=np.where(np.isnan(a),p['median'],a)
+        if params['sign_log1p']: a=np.sign(a)*np.log1p(np.abs(a))
+        out[col]=(a-p['min'])/p['denom']
+    # Preserve original deterministic calendar encoding; not a learned MinMax fit.
+    out['hour']=frame.timestamp.dt.hour/23.0
+    out['month']=(frame.timestamp.dt.month-1)/11.0
+    out['doy']=(frame.timestamp.dt.dayofyear-1)/365.0
+    out=out[FEATURE_COLS].astype(np.float32)
+    if not np.isfinite(out.to_numpy()).all(): raise ValueError('Non-finite preprocessed matrix.')
+    return out
+
+def inverse_signals(values: np.ndarray, params: dict) -> np.ndarray:
+    """Inverse for ten signal channels only; winsorized extremes cannot be recovered."""
+    values=np.asarray(values,dtype=float); out=np.empty_like(values)
+    for j,col in enumerate(params['cols']):
+        p=params['features'][col]; z=values[...,j]*p['denom']+p['min']
+        out[...,j]=np.sign(z)*np.expm1(np.abs(z)) if params['sign_log1p'] else z
+    if not np.isfinite(out).all(): raise FloatingPointError('Non-finite inverse reconstruction.')
+    return out
+
+params = fit_signal_preprocessor(fit_rows, SIGNAL_COLS, q_low=.01, q_high=.99)
+save_json(OUT / 'preprocessor.json', params)
+preprocessor_hash = sha256(OUT / 'preprocessor.json')
+parameter_table = pd.DataFrame([{'Signal':name,**values} for name,values in params['features'].items()])
+parameter_table.to_csv(OUT / 'preprocessing_parameters.csv', index=False)
+display(parameter_table[['Signal','clip_lo','clip_hi','median','denom']])
+display(Markdown('**Interpretation.** These new-run preprocessing parameters depend only on fit rows. Clipped extreme values cannot be recovered by inverse transformation; raw values remain available for error reporting.'))
+
+# Notebook cell: prepare-windows
+def make_windows_np(frame: pd.DataFrame, transformed: pd.DataFrame, length: int) -> dict:
+    """Construct windows entirely within one partition; retain real row IDs and dates."""
+    if len(frame)<length: raise ValueError('Too few rows for a complete window.')
+    if not frame.index.equals(transformed.index): raise ValueError('Input row order mismatch.')
+    ts=pd.DatetimeIndex(frame['timestamp'])
+    if ts.hasnans or not ts.is_unique or not ts.is_monotonic_increasing:
+        raise ValueError('Invalid timestamp alignment.')
+    if not np.all(np.diff(ts.as_unit("ns").asi8)==pd.Timedelta(hours=1).value):
+        raise ValueError('Windowing would cross a time gap.')
+    def slide(a):
+        return np.moveaxis(np.lib.stride_tricks.sliding_window_view(a,length,axis=0),-1,1).copy()
+    values=transformed[FEATURE_COLS].to_numpy(np.float32)
+    original=frame[FEATURE_COLS].to_numpy(np.float32)
+    if np.isinf(original).any(): raise ValueError('Inf in original observations.')
+    ids=frame.obs_id.to_numpy(np.int64)
+    row_grid=np.lib.stride_tricks.sliding_window_view(ids,length).copy()
+    pack={'W':slide(values),'observed':slide(np.isfinite(original)),
+          'raw':slide(original),'row_ids':row_grid,'window_id':row_grid[:,0],
+          'ts_start':np.asarray([t.isoformat() for t in ts[:len(ts)-length+1]],dtype='U40'),
+          'ts_end':np.asarray([t.isoformat() for t in ts[length-1:]],dtype='U40')}
+    assert pack['W'].shape==(len(frame)-length+1,length,len(FEATURE_COLS))
+    assert np.all(pack['row_ids'][:,-1]-pack['row_ids'][:,0]==length-1)
+    return pack
+
+fit = make_windows_np(fit_rows, transform_frame(fit_rows, params), L)
+validation = make_windows_np(val_rows, transform_frame(val_rows, params), L)
+assert not set(fit['row_ids'].ravel()).intersection(validation['row_ids'].ravel())
+assert fit['W'].shape == (6254,24,13) and validation['W'].shape == (678,24,13)
+for role,pack in [('fit',fit),('validation',validation)]:
+    np.savez_compressed(OUT / (role + '_windows.npz'), **pack)
+display(pd.DataFrame([{'Role':role,'Windows':len(pack['W']),'Hours':pack['W'].shape[1],
+    'Channels':pack['W'].shape[2],'Observed fraction':float(pack['observed'].mean())}
+    for role,pack in [('fit',fit),('validation',validation)]]))
+display(Markdown('**Interpretation.** Prepared windows contain only rows from their own partition. The observation mask distinguishes real measurements from any missing values before training corruption.'))
+
+# Notebook cell: masks-metrics
+def exact_masks(pack: dict, rate: float, seed: int, repeat: int=0,
+                pattern: str='random') -> np.ndarray:
+    """Model-independent masks keyed by real window ID; stable under batching/subsetting.
+    Natural missing entries never become ground-truth reconstruction labels.
+    """
+    if not 0<rate<1: raise ValueError('mask_rate must be strictly between zero and one.')
+    observed=pack['observed']; n,length,d=observed.shape
+    masks=np.zeros_like(observed,dtype=bool)
+    for i,wid in enumerate(pack['window_id']):
+        rng=np.random.default_rng(np.random.SeedSequence([int(seed),int(repeat),int(wid)]))
+        valid=np.flatnonzero(observed[i].ravel())
+        if len(valid)<2: raise ValueError('Not enough observed entries to mask.')
+        k=min(max(1,int(round(rate*len(valid)))),len(valid)-1)
+        if pattern=='random':
+            chosen=rng.choice(valid,k,replace=False)
+        elif pattern=='block':
+            candidate=np.zeros((length,d),bool); span=min(length,max(1,int(np.ceil(rate*length))))
+            for j in range(d):
+                start=int(rng.integers(0,length-span+1)); candidate[start:start+span,j]=True
+            selected=np.flatnonzero((candidate & observed[i]).ravel())
+            if len(selected)>=k: chosen=rng.choice(selected,k,replace=False)
+            else: chosen=np.r_[selected,rng.choice(np.setdiff1d(valid,selected),k-len(selected),replace=False)]
+        elif pattern=='channel':
+            # Realistic whole-channel failure: realized rate need not equal nominal rate.
+            channels=rng.choice(d,max(1,min(d-1,int(round(rate*d)))),replace=False)
+            if not np.any(channels<len(SIGNAL_COLS)):
+                channels[0]=int(rng.integers(0,len(SIGNAL_COLS)))
+            candidate=np.zeros((length,d),bool); candidate[:,channels]=True
+            chosen=np.flatnonzero((candidate & observed[i]).ravel())
+        elif pattern=='humidity_group':
+            candidate=np.zeros((length,d),bool)
+            humidity=[FEATURE_COLS.index(c) for c in ['humidity_solar','specific_humidity_solar','relative_humidity_solar']]
+            steps=rng.choice(length,max(1,round(rate*length)),replace=False)
+            candidate[np.ix_(steps,humidity)]=True
+            for j in range(d):
+                if j not in humidity:
+                    candidate[rng.choice(length,max(1,round(rate*length)),replace=False),j]=True
+            chosen=np.flatnonzero((candidate & observed[i]).ravel())
+        else: raise ValueError(f'Unknown masking pattern: {pattern}')
+        masks[i].ravel()[chosen]=True
+    assert not (masks & ~observed).any()
+    assert masks.sum()>0
+    return masks
+
+def masked_input(pack: dict, mask: np.ndarray, context: str='ALL') -> np.ndarray:
+    x=pack['W'].copy()
+    x[~pack['observed']]=0.0
+    x[mask]=0.0
+    if context in ('NO_TIME_INPUT','NO_TIME_RETRAIN'):
+        x[:,:,len(SIGNAL_COLS):]=0.0
+    elif context!='ALL': raise ValueError('Unknown context.')
+    return x
+
+def exact_mask_batch(x: torch.Tensor, observed: torch.Tensor, rate: float,
+                     generator: torch.Generator) -> tuple[torch.Tensor,torch.Tensor]:
+    """Training corruption with a dedicated CPU RNG, independent of validation RNG."""
+    m=torch.zeros_like(observed,dtype=torch.bool,device='cpu')
+    obs=observed.detach().cpu()
+    for i in range(len(x)):
+        valid=torch.nonzero(obs[i].reshape(-1),as_tuple=False).flatten()
+        if len(valid)<2: raise ValueError('Insufficient observed values in training window.')
+        k=min(max(1,round(rate*len(valid))),len(valid)-1)
+        chosen=valid[torch.randperm(len(valid),generator=generator)[:k]]
+        m[i].view(-1)[chosen]=True
+    m=m.to(x.device); out=x.clone(); out[~observed]=0; out[m]=0
+    return out,m
+
+def metric_table(prediction: np.ndarray, pack: dict, mask: np.ndarray,
+                 model: str, **ids) -> pd.DataFrame:
+    """Pooled SSE/count, then square root. Never average batch RMSE."""
+    prediction=np.asarray(prediction)
+    if prediction.shape!=pack['W'].shape or not np.isfinite(prediction).all():
+        raise ValueError('Invalid reconstruction.')
+    mask=np.asarray(mask,bool) & pack['observed']
+    err=prediction.astype(float)-pack['W'].astype(float)
+    groups={'signals':list(range(len(SIGNAL_COLS))),
+            'generation':[FEATURE_COLS.index(c) for c in TARGETS],
+            'all_features':list(range(len(FEATURE_COLS)))}
+    groups['nonredundant_signals']=[j for j,c in enumerate(SIGNAL_COLS) if c not in ['relative_humidity_solar','specific_humidity_solar']]
+    groups.update({c:[FEATURE_COLS.index(c)] for c in TARGETS})
+    rows=[]
+    for group,indices in groups.items():
+        selected=mask[:,:,indices]; e=err[:,:,indices][selected]
+        n=int(len(e))
+        rows.append(dict(ids,model=model,group=group,n_masked=n,
+            MAE=float(np.abs(e).sum()/n) if n else np.nan,
+            MSE=float(np.square(e).sum()/n) if n else np.nan,
+            RMSE=float(np.sqrt(np.square(e).sum()/n)) if n else np.nan))
+    return pd.DataFrame(rows)
+
+def per_window_error(prediction: np.ndarray, pack: dict, mask: np.ndarray,
+                     columns: Optional[list[int]]=None) -> tuple[np.ndarray,np.ndarray,np.ndarray]:
+    columns=list(range(len(SIGNAL_COLS))) if columns is None else columns
+    selected=(mask & pack['observed'])[:,:,columns]
+    e=(prediction.astype(float)-pack['W'].astype(float))[:,:,columns]
+    count=selected.sum((1,2)); squared=(e**2*selected).sum((1,2))
+    absolute=(np.abs(e)*selected).sum((1,2))
+    if np.any(count==0): raise ValueError('A window has no scored entries.')
+    return squared,absolute,count
+
+validation_mask = exact_masks(validation, .15, 314159)
+np.savez_compressed(OUT / 'validation_mask.npz', mask=validation_mask, window_id=validation['window_id'])
+assert np.array_equal(validation_mask, exact_masks(validation,.15,314159))
+display(pd.DataFrame([{'Validation windows':len(validation_mask),'Hidden cells':int(validation_mask.sum()),
+    'Mask rate':.15,'Seed':314159}]))
+
+# Notebook cell: model-definition
+class DualAxisMaskedReconstructor(nn.Module):
+    """Canonical DualAxis; sequential time attention followed by feature attention.
+    Components are original Fragment 7; disabling an axis creates an ablation, not a new model.
+    """
+    def __init__(self,L:int,D:int,d_model:int,nhead:int,layers_time:int,layers_feat:int,
+                 dropout:float,condition:str='FULL'):
+        super().__init__();self.L=L;self.D=D;self.d_model=d_model;self.condition=condition
+        self.val_proj=nn.Linear(1,d_model)
+        self.time_pos=nn.Parameter(torch.zeros(L,d_model));self.feat_emb=nn.Parameter(torch.zeros(D,d_model))
+        def encoder(depth):
+            layer=nn.TransformerEncoderLayer(d_model,nhead,dim_feedforward=4*d_model,
+               dropout=dropout,batch_first=True,activation='gelu',norm_first=True)
+            return nn.TransformerEncoder(layer,num_layers=depth,enable_nested_tensor=False)
+        self.temporal=encoder(layers_time) if condition!='FEATURE_ONLY' else nn.Identity()
+        self.feature=encoder(layers_feat) if condition!='TIME_ONLY' else nn.Identity()
+        self.out_proj=nn.Linear(d_model,1)
+        nn.init.trunc_normal_(self.time_pos,std=.02);nn.init.trunc_normal_(self.feat_emb,std=.02)
+    def tokens(self,x):
+        b,length,d=x.shape
+        if (length,d)!=(self.L,self.D): raise ValueError('DualAxis input shape does not match configuration.')
+        tok=self.val_proj(x.unsqueeze(-1))+self.time_pos[None,:,None,:]+self.feat_emb[None,None,:,:]
+        tok=self.temporal(tok.permute(0,2,1,3).reshape(b*d,length,self.d_model))
+        tok=tok.reshape(b,d,length,self.d_model).permute(0,2,1,3).contiguous()
+        tok=self.feature(tok.reshape(b*length,d,self.d_model))
+        return tok.reshape(b,length,d,self.d_model)
+    def forward(self,x): return self.out_proj(self.tokens(x)).squeeze(-1)
+    def get_embedding(self,x): return self.tokens(x).mean(dim=(1,2))
+
+@torch.no_grad()
+def predict_neural(model:nn.Module,pack:dict,mask:np.ndarray,context:str='ALL',batch_size:Optional[int]=None) -> np.ndarray:
+    batch_size=batch_size or CFG['evaluation']['batch_size'];model.eval()
+    x=masked_input(pack,mask,context);out=[]
+    for start in range(0,len(x),batch_size):
+        batch=torch.from_numpy(x[start:start+batch_size]).to(device)
+        y=model(batch)
+        if y.shape!=batch.shape or not torch.isfinite(y).all(): raise FloatingPointError('Invalid reconstruction.')
+        out.append(y.cpu().numpy())
+    return np.concatenate(out)
+
+@torch.no_grad()
+def extract_embeddings(model:nn.Module,pack:dict,batch_size:Optional[int]=None,context:str='ALL') -> np.ndarray:
+    batch_size=batch_size or CFG['qc']['batch_size'];model.eval();out=[]
+    x=masked_input(pack,np.zeros_like(pack['observed']),context)
+    for start in range(0,len(x),batch_size):
+        z=model.get_embedding(torch.from_numpy(x[start:start+batch_size]).to(device))
+        if z.ndim!=2 or not torch.isfinite(z).all(): raise ValueError('Invalid embedding.')
+        out.append(z.cpu().numpy())
+    return np.concatenate(out)
+
+print('Canonical DualAxis class and evaluation functions are defined; no checkpoint has been loaded.')
+
+# Notebook cell: initialize-training
+def seed_everything(seed):
+    random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
+    if torch.cuda.is_available(): torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+
+seed_everything(SEED)
+model = DualAxisMaskedReconstructor(24,13,96,4,2,2,.1,'FULL').to(device)
+assert sum(p.numel() for p in model.parameters()) == 451201
+loader = DataLoader(TensorDataset(torch.from_numpy(fit['W']),torch.from_numpy(fit['observed'])),
+    batch_size=128, shuffle=True, drop_last=False, generator=torch.Generator().manual_seed(SEED), num_workers=0)
+mask_generator = torch.Generator().manual_seed(SEED + 100000)
+optimizer = torch.optim.AdamW(model.parameters(), lr=.0002, weight_decay=.0001)
+initial_state_hash = hashlib.sha256(b''.join(p.detach().cpu().numpy().tobytes() for p in model.state_dict().values())).hexdigest()
+training_spec = {'model':'DualAxis','condition':'FULL','seed':SEED,'epochs':25,'batch_size':128,
+    'learning_rate':.0002,'weight_decay':.0001,'gradient_clip':1.,'training_mask_rate':.15,
+    'validation_mask_rate':.15,'validation_mask_seed':314159,'source_csv_sha256':EXPECTED_DATA_SHA,
+    'preprocessor_sha256':preprocessor_hash,'fresh_initial_state_sha256':initial_state_hash,
+    'weights_initialized_from_scratch':True,'original_checkpoint_reused':False,
+    'holdout_status':'retrospective_previously_inspected','notebook_source_sha256':SOURCE_CODE_SHA}
+save_json(OUT / 'training_specification.json', training_spec)
+display(pd.DataFrame([{'Parameters':451201,'Fit windows':len(fit['W']),'Batches per epoch':len(loader),
+    'Epochs':25,'Training device':str(device),'Fresh initialization':True}]))
+display(Markdown('**Interpretation.** Only one requested FULL model is initialized. All 25 epochs will run; the lowest fixed-validation masked MSE selects the exported checkpoint.'))
+
+# Notebook cell: train-25-epochs
+best, best_state, best_epoch = float('inf'), None, 0
+history = []
+progress = display(HTML('<p><b>Fresh DualAxis FULL training is starting.</b></p>'), display_id=True)
+started = time.perf_counter()
+for epoch in range(1,26):
+    model.train(); total_sq=0.; total_abs=0.; total_count=0
+    for values,observed in loader:
+        values,observed = values.to(device),observed.to(device)
+        inputs,mask = exact_mask_batch(values,observed,.15,mask_generator)
+        optimizer.zero_grad(set_to_none=True)
+        errors = model(inputs)[mask] - values[mask]
+        if not errors.numel() or not torch.isfinite(errors).all(): raise FloatingPointError('Invalid training loss')
+        errors.square().mean().backward()
+        nn.utils.clip_grad_norm_(model.parameters(),1.,error_if_nonfinite=True)
+        optimizer.step()
+        total_sq += float(errors.detach().square().sum().cpu())
+        total_abs += float(errors.detach().abs().sum().cpu()); total_count += errors.numel()
+    prediction = predict_neural(model,validation,validation_mask)
+    squared,absolute,count = per_window_error(prediction,validation,validation_mask,list(range(13)))
+    val_mse = float(squared.sum()/count.sum())
+    if not np.isfinite(val_mse): raise FloatingPointError('Invalid validation MSE')
+    history.append({'epoch':epoch,'train_MSE':total_sq/total_count,'train_MAE':total_abs/total_count,
+        'val_MSE':val_mse,'val_MAE':float(absolute.sum()/count.sum()),'elapsed_seconds':time.perf_counter()-started,
+        'train_n_masked':int(total_count),'val_n_masked':int(count.sum())})
+    if val_mse < best:
+        best,best_epoch = val_mse,epoch
+        best_state = {key:value.detach().cpu().clone() for key,value in model.state_dict().items()}
+    history_frame = pd.DataFrame(history)
+    history_frame.to_csv(OUT / 'history_progress.csv',index=False)
+    progress.update(HTML('<p><b>Fresh DualAxis FULL / seed 42 / epoch '+str(epoch)+'/25</b></p>'+
+        history_frame[['epoch','train_MSE','val_MSE','elapsed_seconds']].to_html(index=False,max_rows=None,max_cols=None,
+        float_format=lambda value:f'{value:.6f}')))
+assert best_state is not None and len(history) == 25
+model.load_state_dict(best_state); model.eval()
+torch.save(best_state,OUT / 'state.pt')
+history_frame.to_csv(OUT / 'history.csv',index=False)
+fit_seconds = time.perf_counter()-started
+metadata = {'run_id':RUN_ID,'config_hash':config_hash,'dataset_hash':EXPECTED_DATA_SHA,
+    'preprocessor_hash':preprocessor_hash,'kind':'DualAxis','condition':'FULL','seed':42,'fold':'final',
+    'parameters':CFG['models']['DualAxis'],'trainable_parameters':451201,'epochs_executed':25,
+    'best_epoch':best_epoch,'best_val_MSE':best,'fit_seconds':fit_seconds,'device':str(device),
+    'torch_version':str(torch.__version__),'checkpoint_hash':sha256(OUT/'state.pt'),'fresh_training':True}
+save_json(OUT / 'metadata.json',metadata)
+display(Markdown(f'**Interpretation.** All 25 fresh epochs completed. Epoch {best_epoch} has the smallest fixed-validation MSE ({best:.6f}) and is restored. No holdout result selected this checkpoint.'))
+
+# Notebook cell: learning-curve
+fig,ax = plt.subplots(figsize=(10,6.5),layout='constrained')
+ax.plot(history_frame.epoch,np.sqrt(history_frame.train_MSE),color='#0072B2',marker='o',label='Training, newly masked cells')
+ax.plot(history_frame.epoch,np.sqrt(history_frame.val_MSE),color='#D55E00',marker='s',label='Validation, fixed mask')
+ax.axvline(best_epoch,color='#555555',linestyle='--',label='Selected epoch')
+ax.set(xlabel='Epoch',ylabel='Masked RMSE (normalized)',title='DualAxis FULL: fresh training')
+ax.legend(loc='upper center',bbox_to_anchor=(.5,-.18),ncol=1,frameon=False)
+fig.savefig(OUT / 'Figures/learning_curve.png',dpi=350,bbox_inches='tight')
+fig.savefig(OUT / 'Figures/learning_curve.pdf',bbox_inches='tight')
+plt.show()
+display(history_frame[['epoch','train_MSE','val_MSE','train_MAE','val_MAE']])
+display(Markdown('**Interpretation.** Training masks change between epochs while validation masks stay fixed; the two curves therefore use different corruption draws. Epoch selection does not establish convergence or superiority over other models.'))
+
+# Notebook cell: qc-definition
+def robust_location_scale(reference: np.ndarray) -> dict:
+    values=np.asarray(reference,float)
+    if values.ndim!=1 or not np.isfinite(values).all(): raise ValueError('Invalid QC calibration values.')
+    median=float(np.median(values));mad=float(np.median(np.abs(values-median)))
+    scale=1.4826*mad;source='MAD'
+    if scale<=1e-12:
+        scale=float((np.quantile(values,.75)-np.quantile(values,.25))/1.349);source='IQR'
+    if scale<=1e-12: scale=float(values.std());source='standard deviation'
+    if scale<=1e-12: scale=1.;source='constant channel convention'
+    return {'median':median,'scale':scale,'scale_source':source}
+
+def apply_robust_z(values: np.ndarray, params: dict) -> np.ndarray:
+    return (np.asarray(values)-params['median'])/params['scale']
+
+def repeated_window_rmse(model: nn.Module,pack: dict,rate: float,seed: int,repeats: int,
+                         context: str='ALL') -> np.ndarray:
+    errors=[]
+    for repeat in range(repeats):
+        mask=exact_masks(pack,rate,seed,repeat)
+        prediction=predict_neural(model,pack,mask,context,CFG['qc']['batch_size'])
+        sse,_,count=per_window_error(prediction,pack,mask)
+        errors.append(np.sqrt(sse/count))
+    # This statistic intentionally matches window-level QC: mean of repeat RMSEs.
+    return np.mean(errors,axis=0)
+
+def fit_qc_system(model:nn.Module,fit:dict,cal:dict) -> dict:
+    """Learn density on fit embeddings; reference-score scale and cutoff on validation, never test."""
+    z_fit=extract_embeddings(model,fit);z_cal=extract_embeddings(model,cal)
+    scaler=RobustScaler().fit(z_fit)
+    zs=scaler.transform(z_fit)
+    dim=min(CFG['qc']['embedding_pca_dim'],zs.shape[1],len(zs)-1)
+    projection=PCA(n_components=dim,svd_solver='full').fit(zs)
+    embedded=projection.transform(zs);cal_embed=projection.transform(scaler.transform(z_cal))
+    gmm=GaussianMixture(n_components=CFG['qc']['gmm_components'],covariance_type='full',
+        reg_covar=1e-4,n_init=3,max_iter=300,random_state=42).fit(embedded)
+    if not gmm.converged_: raise RuntimeError('Density model did not converge.')
+    km=KMeans(n_clusters=CFG['qc']['gmm_components'],n_init=20,random_state=42).fit(embedded)
+    components={'rmse':repeated_window_rmse(model,cal,CFG['qc']['mask_rate'],42,CFG['qc']['mask_repeats']),
+                'nll':-gmm.score_samples(cal_embed),
+                'distance':np.min(km.transform(cal_embed),axis=1)}
+    if CFG['qc']['mc_passes']>=2:
+        components['uncertainty']=mean_masked_uncertainty(model,cal,CFG['qc']['mask_rate'],CFG['qc']['mc_passes'],42)
+    norm={name:robust_location_scale(values) for name,values in components.items()}
+    weights={name:float(CFG['qc']['weights'][name]) for name in components}
+    total=sum(weights.values());weights={name:w/total for name,w in weights.items()}
+    calibration_score=sum(weights[name]*apply_robust_z(values,norm[name]) for name,values in components.items())
+    return {'scaler':scaler,'projection':projection,'gmm':gmm,'centroids':km,'normalization':norm,
+            'weights':weights,'cutoff':float(np.quantile(calibration_score,CFG['qc']['calibration_quantile'])),
+            'calibration_score':calibration_score,'calibration_components':components}
+
+def qc_components(model,system,pack,rate,seed,repeats,context='ALL'):
+    z=extract_embeddings(model,pack,context=context)
+    z=system['projection'].transform(system['scaler'].transform(z))
+    parts={'rmse':repeated_window_rmse(model,pack,rate,seed,repeats,context),
+           'nll':-system['gmm'].score_samples(z),'distance':np.min(system['centroids'].transform(z),axis=1)}
+    if 'uncertainty' in system['weights']:
+        parts['uncertainty']=mean_masked_uncertainty(model,pack,rate,CFG['qc']['mc_passes'],seed,context)
+    score=sum(system['weights'][key]*apply_robust_z(values,system['normalization'][key]) for key,values in parts.items())
+    return score,parts
+
+print('New QC fitting functions defined; no old calibrator is loaded. Base MC-dropout passes:',CFG['qc']['mc_passes'])
+
+# Notebook cell: fit-new-qc-freeze
+print('Fitting new QC representation scaling, PCA, GMM and centroid model on fit windows...',flush=True)
+calibration_started = time.perf_counter()
+qc_system = fit_qc_system(model,fit,validation)
+joblib.dump(qc_system,OUT / 'qc_system.joblib')
+calibration_manifest = {'run_id':RUN_ID,'checkpoint_hash':sha256(OUT/'state.pt'),
+    'preprocessor_hash':preprocessor_hash,'qc_system_hash':sha256(OUT/'qc_system.joblib'),
+    'qc_cutoff':qc_system['cutoff'],'qc_weights':qc_system['weights'],'qc_reference':qc_system['normalization'],
+    'model_seed':42,'mask_seed':42,'mask_rate':.3,'mask_repeats':5,'fresh_qc_fit':True,
+    'test_status':'retrospective_holdout_previously_seen','calibration_seconds':time.perf_counter()-calibration_started}
+save_json(OUT / 'frozen_calibration.json',calibration_manifest)
+freeze = {'run_id':RUN_ID,'frozen_at_utc':datetime.now(timezone.utc).isoformat(),
+    'training_specification_sha256':sha256(OUT/'training_specification.json'),
+    'checkpoint_sha256':sha256(OUT/'state.pt'),'preprocessor_sha256':preprocessor_hash,
+    'qc_system_sha256':sha256(OUT/'qc_system.joblib'),'holdout_opened_in_this_run':False,
+    'holdout_status':'retrospective_previously_inspected','evaluation_mask_rate':.3,'evaluation_mask_seed':424242}
+save_json(OUT / 'frozen_before_holdout.json',freeze)
+calibration_table = pd.DataFrame([{'Component':name,'Weight':qc_system['weights'][name],
+    'Validation median':p['median'],'Validation scale':p['scale']} for name,p in qc_system['normalization'].items()])
+calibration_table.to_csv(OUT / 'qc_calibration_summary.csv',index=False)
+display(calibration_table)
+display(pd.DataFrame([{'New diagnostic cutoff':qc_system['cutoff'],'Validation quantile':.99,
+    'New GMM converged':bool(qc_system['gmm'].converged_),'Calibration seconds':calibration_manifest['calibration_seconds']}]))
+display(Markdown('**Interpretation.** The newly trained weights and their newly fitted QC calibrator are frozen together. The score is a reconstruction/distribution diagnostic, not a probability or a confirmed sensor fault.'))
+
+# Notebook cell: frozen-holdout
+assert not (OUT/'holdout_evaluation.json').exists(), 'Holdout phase already evaluated in this run; do not rerun for model selection.'
+for name,key in [('state.pt','checkpoint_sha256'),('preprocessor.json','preprocessor_sha256'),('qc_system.joblib','qc_system_sha256')]:
+    assert sha256(OUT/name) == freeze[key]
+holdout_rows = canonical.iloc[DEV_STOP:].copy()
+holdout = make_windows_np(holdout_rows,transform_frame(holdout_rows,params),L)
+assert holdout['W'].shape == (1728,24,13)
+holdout_mask = exact_masks(holdout,.3,424242)
+holdout_prediction = predict_neural(model,holdout,holdout_mask)
+metrics = metric_table(holdout_prediction,holdout,holdout_mask,'DualAxis FULL',partition='Retrospective holdout',mask_rate=.3)
+metrics.to_csv(OUT / 'holdout_normalized_metrics.csv',index=False)
+source_prediction = inverse_signals(holdout_prediction[:,:,:len(SIGNAL_COLS)],params)
+source_rows = []
+for name in TARGETS:
+    j = SIGNAL_COLS.index(name); selected = holdout_mask[:,:,j] & holdout['observed'][:,:,j]
+    error = (source_prediction[:,:,j]-holdout['raw'][:,:,j].astype(float))[selected]
+    source_rows.append({'Target':name,'Unit':'Unspecified source units','Masked entries':len(error),
+        'MAE':float(np.abs(error).mean()),'RMSE':float(np.sqrt(np.square(error).mean()))})
+source_metrics = pd.DataFrame(source_rows);source_metrics.to_csv(OUT / 'holdout_generation_source_metrics.csv',index=False)
+qc_scores,qc_parts = qc_components(model,qc_system,holdout,.3,42,5)
+qc_table = pd.DataFrame({'Window start':holdout['ts_start'],'Window end':holdout['ts_end'],'QC score':qc_scores,
+    'Above validation reference cutoff':qc_scores>qc_system['cutoff'],**qc_parts})
+qc_table.to_csv(OUT / 'holdout_qc_diagnostics.csv',index=False)
+np.savez_compressed(OUT / 'holdout_predictions.npz',prediction=holdout_prediction,truth=holdout['W'],
+    mask=holdout_mask,observed=holdout['observed'],raw=holdout['raw'],row_ids=holdout['row_ids'],window_id=holdout['window_id'])
+holdout_report = {'run_id':RUN_ID,'status':'evaluated_once_after_freeze','windows':len(holdout['W']),
+    'mask_rate':.3,'mask_seed':424242,'reference_cutoff':float(qc_system['cutoff']),
+    'fraction_above_reference_cutoff':float(np.mean(qc_scores>qc_system['cutoff'])),
+    'interpretation':'Reference exceedance is diagnostic distribution shift, not fault prevalence or calibrated fault probability',
+    'metrics_sha256':sha256(OUT/'holdout_normalized_metrics.csv'),'predictions_sha256':sha256(OUT/'holdout_predictions.npz')}
+save_json(OUT / 'holdout_evaluation.json',holdout_report)
+display(metrics[['group','n_masked','MAE','MSE','RMSE']]);display(source_metrics)
+display(pd.DataFrame([{'QC cutoff':qc_system['cutoff'],'Holdout fraction above cutoff':holdout_report['fraction_above_reference_cutoff']}]))
+display(Markdown('**Interpretation.** These results describe this already known chronological period only. A high cutoff-exceedance fraction would indicate calibration/distribution mismatch; it is not a measured proportion of defective observations.'))
+
+# Notebook cell: reload-and-golden
+device = torch.device('cpu')
+model = model.to(device).eval()
+restored = DualAxisMaskedReconstructor(24,13,96,4,2,2,.1,'FULL').to(device)
+assert sha256(OUT/'state.pt') == freeze['checkpoint_sha256']
+restored.load_state_dict(torch.load(OUT/'state.pt',map_location='cpu',weights_only=True));restored.eval()
+assert sha256(OUT/'qc_system.joblib') == freeze['qc_system_sha256']
+restored_qc = joblib.load(OUT/'qc_system.joblib')
+probe = {key:value[:2] for key,value in validation.items()}
+probe_mask = exact_masks(probe,.3,42)
+reference_prediction = predict_neural(model,probe,probe_mask)
+restored_prediction = predict_neural(restored,probe,probe_mask)
+np.testing.assert_allclose(restored_prediction,reference_prediction,rtol=1e-7,atol=1e-7)
+reference_qc,reference_parts = qc_components(model,qc_system,probe,.3,42,5)
+restored_scores,restored_parts = qc_components(restored,restored_qc,probe,.3,42,5)
+np.testing.assert_allclose(restored_scores,reference_qc,rtol=1e-7,atol=1e-7)
+fixture = {'source_project':ROOT.name,'source_relative_path':INPUT.name,'source_dataset_sha256':EXPECTED_DATA_SHA,
+    'run_id':RUN_ID,'checkpoint_sha256':sha256(OUT/'state.pt'),'preprocessor_sha256':preprocessor_hash,
+    'qc_system_sha256':sha256(OUT/'qc_system.joblib'),'source_units':'unspecified',
+    'timezone_note':'Source timezone unspecified; +00:00 is a test offset preserving source calendar, not a source timezone claim',
+    'expected_value_origin':'Newly trained notebook model on CPU with newly fitted QC system','cases':[]}
+for i in range(2):
+    ids = probe['row_ids'][i];rows = canonical.set_index('obs_id').loc[ids]
+    records = rows[SIGNAL_COLS].astype(float).to_dict('records')
+    for record,stamp in zip(records,rows.timestamp):record['timestamp']=stamp.isoformat()+'+00:00'
+    window = {key:value[i:i+1] for key,value in probe.items()}
+    single_score,single_parts = qc_components(restored,restored_qc,window,.3,42,5)
+    fixture['cases'].append({'window_id':int(probe['window_id'][i]),'source_row_ids':rows.source_row_id.astype(int).tolist(),
+        'records':records,'expected':{'qc_score':float(single_score[0]),
+        'components':{name:float(values[0]) for name,values in single_parts.items()},
+        'preprocessed_float32_le_sha256':hashlib.sha256(window['W'].astype('<f4').tobytes()).hexdigest(),
+        'mask_sha256':[hashlib.sha256(exact_masks(window,.3,42,repeat).tobytes()).hexdigest() for repeat in range(5)]}})
+save_json(OUT / 'golden_inference.json',fixture)
+parity = {'cpu_roundtrip_passed':True,'max_prediction_absolute_error':float(np.max(np.abs(restored_prediction-reference_prediction))),
+    'max_qc_absolute_error':float(np.max(np.abs(restored_scores-reference_qc))),'probe_partition':'validation',
+    'checkpoint_sha256':sha256(OUT/'state.pt'),'qc_system_sha256':sha256(OUT/'qc_system.joblib')}
+save_json(OUT / 'reload_verification.json',parity)
+display(pd.DataFrame([parity]).T.rename(columns={0:'Value'}))
+
+# Notebook cell: final-export-manifest
+after = {relative:sha256(ROOT/relative) for relative in original_hashes}
+assert after == original_hashes, 'An original source file changed during this run.'
+assert notebook_source_sha(NOTEBOOK) == SOURCE_CODE_SHA, 'Training notebook code changed during execution.'
+assert len(pd.read_csv(OUT/'history.csv')) == 25
+assert sha256(INPUT) == EXPECTED_DATA_SHA
+save_json(OUT / 'original_files_after.json',after)
+book_source = json.loads(NOTEBOOK.read_text())
+source_sections = []
+for cell in book_source['cells']:
+    if cell['cell_type'] == 'code':
+        text = ''.join(cell['source']) if isinstance(cell['source'],list) else cell['source']
+        source_sections.append('# Notebook cell: ' + cell['id'] + '\n' + text)
+(OUT / 'architecture_source.txt').write_text('\n\n'.join(source_sections) + '\n')
+export_files = ['architecture_source.txt','environment.json','state.pt','metadata.json','preprocessor.json','qc_system.joblib','frozen_calibration.json',
+    'training_specification.json','frozen_before_holdout.json','holdout_evaluation.json','golden_inference.json',
+    'reload_verification.json','history.csv']
+provenance = {'run_id':RUN_ID,'source_project':str(ROOT),'source_dataset_sha256':EXPECTED_DATA_SHA,
+    'original_config_file_sha256':EXPECTED_CONFIG_SHA,'notebook_path':str(NOTEBOOK),'notebook_source_sha256':SOURCE_CODE_SHA,
+    'fresh_training_completed':True,'training_epochs':25,'best_epoch':best_epoch,'fresh_qc_calibration':True,
+    'original_scientific_files_unchanged':True,'training_device':metadata['device'],'serving_verification_device':'cpu',
+    'role':'retrospective_reconstruction_diagnostic','model':'DualAxis FULL','seed':42,
+    'fit_windows':len(fit['W']),'validation_windows':len(validation['W']),'holdout_windows':len(holdout['W']),
+    'source_units':'unspecified','source_timezone':'unspecified','supports_forecast_weather_qc':False,
+    'requires_measured_generation':True,'qc_score_is_probability':False,
+    'reference_cutoff':float(qc_system['cutoff']),
+    'new_holdout_fraction_above_reference_cutoff':holdout_report['fraction_above_reference_cutoff'],
+    'files':{name:{'sha256':sha256(OUT/name),'bytes':(OUT/name).stat().st_size} for name in export_files},
+    'completed_at_utc':datetime.now(timezone.utc).isoformat(),
+    'limitations':['Retrospective same-source holdout, already historically inspected',
+        'Validation serves checkpoint selection and QC reference calibration',
+        'Unknown source physical units/site/timezone',
+        'No ground-truth operational fault labels or new-site calibration',
+        'Within-window bidirectional reconstruction is not future generation forecasting']}
+save_json(OUT / 'provenance.json',provenance)
+completion = {'status':'complete','run_id':RUN_ID,'export_directory':str(OUT),
+    'provenance_sha256':sha256(OUT/'provenance.json'),'fresh_training_completed':True,
+    'new_qc_calibration_completed':True,'cpu_roundtrip_verified':True,'original_files_unchanged':True}
+save_json(OUT / 'completion.json',completion)
+display(pd.DataFrame([{'Artifact':name,'Bytes':p['bytes'],'SHA256':p['sha256']} for name,p in provenance['files'].items()]))
+display(Markdown('**Completion.** A fresh DualAxis FULL model and its new QC calibrator are exported and verified together. Server integration must update artifact hashes, golden values and the measured calibration caveat from this run. Deployment has not been performed by this notebook.'))
+print('Completed export:',OUT)

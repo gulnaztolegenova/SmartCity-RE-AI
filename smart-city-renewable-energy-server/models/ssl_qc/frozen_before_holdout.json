@@ -1,0 +1,12 @@
+{
+  "run_id": "dualaxis-full-seed42-20261013T144409613629Z",
+  "frozen_at_utc": "2026-10-13T14:55:50.587186+00:00",
+  "training_specification_sha256": "670acf4ab8f1ef52530a38924d807d528c4091d3985e0345f31d9959f68b4c0c",
+  "checkpoint_sha256": "e08dd4cd2076a797ff024a9abb66bb185795b6757e37df2710f3652ea364290f",
+  "preprocessor_sha256": "6928855c004af1360324bb856285d11b0303a1512311ae932cfed4ba746385e4",
+  "qc_system_sha256": "12b7a1d077f574eaae711fa9bf43633b8ef953e3ae1125d3652742d3c37d85d8",
+  "holdout_opened_in_this_run": false,
+  "holdout_status": "retrospective_previously_inspected",
+  "evaluation_mask_rate": 0.3,
+  "evaluation_mask_seed": 424242
+}

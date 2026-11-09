@@ -1,0 +1,90 @@
+{
+  "run_id": "dualaxis-full-seed42-20261013T144409613629Z",
+  "source_project": "<research-root>/Gulnaz_T_N2_DualAxis",
+  "source_dataset_sha256": "2771dd8b57aa43bc79944a9e8b2eb72d1214674056e601b997038fea164f1204",
+  "original_config_file_sha256": "f06065096022eaae047ae0ea28b762893e889313532e7daa1f0153c139d4a870",
+  "notebook_path": "<research-root>/Gulnaz_T_N2_DualAxis/Server_Training/01_train_dualaxis_server.ipynb",
+  "notebook_source_sha256": "35cd34e7f625ba2fa3d06dc86c4a9c9e44d77ce2e0b2741a2f90fa6575b235e4",
+  "fresh_training_completed": true,
+  "training_epochs": 25,
+  "best_epoch": 25,
+  "fresh_qc_calibration": true,
+  "original_scientific_files_unchanged": true,
+  "training_device": "mps",
+  "serving_verification_device": "cpu",
+  "role": "retrospective_reconstruction_diagnostic",
+  "model": "DualAxis FULL",
+  "seed": 42,
+  "fit_windows": 6254,
+  "validation_windows": 678,
+  "holdout_windows": 1728,
+  "source_units": "unspecified",
+  "source_timezone": "unspecified",
+  "supports_forecast_weather_qc": false,
+  "requires_measured_generation": true,
+  "qc_score_is_probability": false,
+  "reference_cutoff": 3.2255731055094277,
+  "new_holdout_fraction_above_reference_cutoff": 0.7314814814814815,
+  "files": {
+    "architecture_source.txt": {
+      "sha256": "b9fe1946616c93e8570e50c315d406d0a22983f89fd406f79a26e99abdd53fbc",
+      "bytes": 44293
+    },
+    "environment.json": {
+      "sha256": "fe8ab0f10a64f6e1c0892dcec1d040b43ececc128ba11ce805f730ff978241ce",
+      "bytes": 416
+    },
+    "state.pt": {
+      "sha256": "e08dd4cd2076a797ff024a9abb66bb185795b6757e37df2710f3652ea364290f",
+      "bytes": 1818249
+    },
+    "metadata.json": {
+      "sha256": "01950fbf11abc0ce0b220ca238c648a3ba05ffdf31cdf232b1963d8a83685a77",
+      "bytes": 841
+    },
+    "preprocessor.json": {
+      "sha256": "6928855c004af1360324bb856285d11b0303a1512311ae932cfed4ba746385e4",
+      "bytes": 2859
+    },
+    "qc_system.joblib": {
+      "sha256": "12b7a1d077f574eaae711fa9bf43633b8ef953e3ae1125d3652742d3c37d85d8",
+      "bytes": 65211
+    },
+    "frozen_calibration.json": {
+      "sha256": "a600c9f2a1cc546f78f5398022ed0867399dee6c5037645314c158b9899e1855",
+      "bytes": 1082
+    },
+    "training_specification.json": {
+      "sha256": "670acf4ab8f1ef52530a38924d807d528c4091d3985e0345f31d9959f68b4c0c",
+      "bytes": 794
+    },
+    "frozen_before_holdout.json": {
+      "sha256": "bae6b03ed1cf95b0b7588d32290a9af7baf9d7182de62f0337d0299fc38bac37",
+      "bytes": 656
+    },
+    "holdout_evaluation.json": {
+      "sha256": "95c9ba18b4ec8b0235864da95b7cdd5cb5400441337e5a20ad39c2bf56aa1be1",
+      "bytes": 577
+    },
+    "golden_inference.json": {
+      "sha256": "2d4aba5c220625731b553c723ee74a007e20dcd9965b012c2da0851b0fa8933e",
+      "bytes": 26015
+    },
+    "reload_verification.json": {
+      "sha256": "a2b6246c28abababd082e4134e3021b47c62b9fdbe3388975e672d90d5d4b9f0",
+      "bytes": 323
+    },
+    "history.csv": {
+      "sha256": "45d1e257559915c498337bdb40c73e630e7f64303f9432eea4dba0a9202881cd",
+      "bytes": 2966
+    }
+  },
+  "completed_at_utc": "2026-10-13T14:57:46.685787+00:00",
+  "limitations": [
+    "Retrospective same-source holdout, already historically inspected",
+    "Validation serves checkpoint selection and QC reference calibration",
+    "Unknown source physical units/site/timezone",
+    "No ground-truth operational fault labels or new-site calibration",
+    "Within-window bidirectional reconstruction is not future generation forecasting"
+  ]
+}

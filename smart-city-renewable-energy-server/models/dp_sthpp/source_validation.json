@@ -1,0 +1,10 @@
+{
+  "raw_rows": 8753,
+  "usable_unique_rows": 8752,
+  "dropped_duplicate_rows": 1,
+  "first_timestamp": "2019-01-01 08:00:00",
+  "last_timestamp": "2019-12-31 23:00:00",
+  "full_hourly_grid": true,
+  "source_timezone": "unspecified",
+  "generation_unit": "unverified source scale"
+}

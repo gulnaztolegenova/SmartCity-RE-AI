@@ -1,0 +1,28 @@
+{
+  "all_passed": true,
+  "checks": [
+    {
+      "sample_id": 5585,
+      "maximum_regression_absolute_difference": 2.2619725200456742e-05,
+      "maximum_probability_absolute_difference": 6.548361852765083e-11,
+      "passed": true
+    },
+    {
+      "sample_id": 5586,
+      "maximum_regression_absolute_difference": 8.27015950335408e-05,
+      "maximum_probability_absolute_difference": 5.238689482212067e-10,
+      "passed": true
+    },
+    {
+      "sample_id": 5587,
+      "maximum_regression_absolute_difference": 1.7255242937608273e-05,
+      "maximum_probability_absolute_difference": 2.6193447411060333e-10,
+      "passed": true
+    }
+  ],
+  "examples_source": "inner validation",
+  "reload_devices": [
+    "/job:localhost/replica:0/task:0/device:CPU:0"
+  ],
+  "reload_execution": "explicit CPU build and inference"
+}

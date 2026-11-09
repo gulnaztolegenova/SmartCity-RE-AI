@@ -1,0 +1,8 @@
+{
+  "epochs_executed": 28,
+  "best_validation_epoch": 28,
+  "best_validation_loss": -1.046019196510315,
+  "training_seconds": 440.2516328749916,
+  "selection_data": "inner validation only",
+  "restored_best_weights": true
+}

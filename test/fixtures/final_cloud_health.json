@@ -1,0 +1,18 @@
+{
+  "status": "ok",
+  "service": "smart-city-renewable-energy-server",
+  "api": "Smart City Renewable Energy Forecast API",
+  "model_name": "DP-STH++",
+  "model_version": "weather-v1-20261029",
+  "model_loaded": true,
+  "weather_quality_model": "DualAxis",
+  "weather_quality_loaded": true,
+  "load_model_loaded": true,
+  "ssl_qc_model_loaded": true,
+  "dp_sthpp_model_loaded": true,
+  "model_dir": "/app/models",
+  "load_model_dir": "/app/models",
+  "open_meteo_base_url": "https://api.open-meteo.com/v1/forecast",
+  "firestore_enabled": true,
+  "firestore_error": null
+}

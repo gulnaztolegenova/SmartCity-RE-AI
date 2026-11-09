@@ -1,0 +1,26 @@
+{
+  "run_id": "dualaxis-full-seed42-20261013T144409613629Z",
+  "config_hash": "0b1b589d161871e14d569bb6dab8a75581bdb5d6e2a4feb24264b23c509e72de",
+  "dataset_hash": "2771dd8b57aa43bc79944a9e8b2eb72d1214674056e601b997038fea164f1204",
+  "preprocessor_hash": "6928855c004af1360324bb856285d11b0303a1512311ae932cfed4ba746385e4",
+  "kind": "DualAxis",
+  "condition": "FULL",
+  "seed": 42,
+  "fold": "final",
+  "parameters": {
+    "d_model": 96,
+    "nhead": 4,
+    "layers_time": 2,
+    "layers_feat": 2,
+    "dropout": 0.1
+  },
+  "trainable_parameters": 451201,
+  "epochs_executed": 25,
+  "best_epoch": 25,
+  "best_val_MSE": 0.006338544090568993,
+  "fit_seconds": 535.9856214589963,
+  "device": "mps",
+  "torch_version": "2.11.0",
+  "checkpoint_hash": "e08dd4cd2076a797ff024a9abb66bb185795b6757e37df2710f3652ea364290f",
+  "fresh_training": true
+}

@@ -1,0 +1,70 @@
+{
+  "feature_columns": [
+    "temperature_solar",
+    "surface_irradiance_solar",
+    "toa_irradiance_solar",
+    "air_density_wind",
+    "wind_speed_wind",
+    "hour_sin",
+    "hour_cos",
+    "doy_sin",
+    "doy_cos",
+    "clearness_index",
+    "solar_reference",
+    "wind_reference"
+  ],
+  "base_columns": [
+    "temperature_solar",
+    "surface_irradiance_solar",
+    "toa_irradiance_solar",
+    "air_density_wind",
+    "wind_speed_wind"
+  ],
+  "mean": [
+    3.0775229930877686,
+    185.5632781982422,
+    339.5515441894531,
+    1.2228044271469116,
+    6.254340171813965,
+    -0.0008579287678003311,
+    -0.00022988136333879083,
+    0.4820363521575928,
+    -0.15345759689807892,
+    0.2875337600708008,
+    0.23150712251663208,
+    0.2724177837371826
+  ],
+  "scale": [
+    14.64744758605957,
+    237.4189910888672,
+    403.80914306640625,
+    0.07428863644599915,
+    2.5924031734466553,
+    0.7068883180618286,
+    0.7073270678520203,
+    0.4521818459033966,
+    0.7345892190933228,
+    0.26831668615341187,
+    0.2962017357349396,
+    0.29363349080085754
+  ],
+  "target_reference": [
+    4263.8662109375,
+    4697.474609375
+  ],
+  "reference_coefficients": [
+    1.2475932836532593,
+    1.3109745979309082
+  ],
+  "extreme_thresholds": [
+    3448.52294921875,
+    3362.340087890625
+  ],
+  "lookback": 24,
+  "alignment": "window ending at target weather hour",
+  "source_target_units": "unverified source units; not kWh",
+  "excluded_features": [
+    "generation history",
+    "ambiguous source humidity"
+  ]
+}

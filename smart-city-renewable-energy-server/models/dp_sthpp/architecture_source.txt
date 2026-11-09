@@ -1,0 +1,120 @@
+class LossScaleLayer(tf.keras.layers.Layer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.log_var_solar_reg = self.add_weight(name="log_var_solar_reg", shape=(), initializer="zeros", trainable=True)
+        self.log_var_wind_reg = self.add_weight(name="log_var_wind_reg", shape=(), initializer="zeros", trainable=True)
+
+    def call(self, inputs):
+        return inputs
+
+def uw_mse(log_var):
+    def loss(y_true, y_pred):
+        mse = tf.reduce_mean(tf.square(tf.cast(y_true, tf.float32) - tf.cast(y_pred, tf.float32)), axis=-1)
+        return tf.exp(-log_var) * mse + log_var
+    return loss
+
+def compile_mtl_model(model: Model, lr: float, cls_weight: float):
+    lw = model.get_layer("loss_scales")
+    losses = {
+        "solar_reg": uw_mse(lw.log_var_solar_reg),
+        "wind_reg": uw_mse(lw.log_var_wind_reg),
+        "solar_ext": tf.keras.losses.BinaryCrossentropy(),
+        "wind_ext": tf.keras.losses.BinaryCrossentropy(),
+    }
+    loss_weights = {"solar_reg": 1.0, "wind_reg": 1.0, "solar_ext": cls_weight, "wind_ext": cls_weight}
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr), loss=losses, loss_weights=loss_weights)
+    return model
+
+def transformer_block(x, d_model=64, nhead=4, ff_dim=128, dropout=0.1, causal=True):
+    key_dim = max(1, d_model // nhead)
+    x_ln = LayerNormalization()(x)
+    attn = MultiHeadAttention(num_heads=nhead, key_dim=key_dim)(x_ln, x_ln, use_causal_mask=causal)
+    attn = Dropout(dropout)(attn)
+    x = Add()([x, attn])
+
+    y_ln = LayerNormalization()(x)
+    ff = Dense(ff_dim, activation="relu")(y_ln)
+    ff = Dropout(dropout)(ff)
+    ff = Dense(d_model)(ff)
+    x = Add()([x, ff])
+    return x
+
+def build_dp_sthpp(input_shapes: Dict, lr=6e-4, units=128, d_model=128, dropout=0.15, cls_weight=0.45):
+    """
+    DP-STH++ (enhanced):
+    - four causal encoders (LSTM, GRU, dilated Conv1D, Transformer),
+    - learnable branch gating conditioned on flat context,
+    - autoregressive residual head that predicts deltas from latest targets.
+    """
+    L_, D_ = input_shapes["seq"]
+    seq_in = Input(shape=(L_, D_), name="seq_in")
+    flat_in = Input(shape=(D_,), name="flat_in")
+
+    # Branch 1: LSTM encoder
+    b1 = LSTM(units, return_sequences=True)(seq_in)
+    b1 = Dropout(dropout * 0.5)(b1)
+    b1 = LSTM(units // 2, return_sequences=True)(b1)
+    b1 = GlobalAveragePooling1D()(b1)
+
+    # Branch 2: GRU encoder
+    b2 = GRU(units, return_sequences=True)(seq_in)
+    b2 = Dropout(dropout * 0.5)(b2)
+    b2 = GRU(units // 2, return_sequences=True)(b2)
+    b2 = GlobalAveragePooling1D()(b2)
+
+    # Branch 3: multi-scale causal conv (TCN-like with dilation)
+    b3 = Conv1D(units, kernel_size=3, dilation_rate=1, padding="causal", activation="relu")(seq_in)
+    b3 = Conv1D(units, kernel_size=3, dilation_rate=2, padding="causal", activation="relu")(b3)
+    b3 = Conv1D(units // 2, kernel_size=3, dilation_rate=4, padding="causal", activation="relu")(b3)
+    b3 = GlobalAveragePooling1D()(b3)
+
+    # Branch 4: causal transformer encoder
+    b4 = Dense(d_model)(seq_in)
+    b4 = transformer_block(b4, d_model=d_model, nhead=4, ff_dim=256, dropout=dropout, causal=True)
+    b4 = transformer_block(b4, d_model=d_model, nhead=4, ff_dim=256, dropout=dropout, causal=True)
+    b4 = GlobalAveragePooling1D()(b4)
+
+    # Project branches to a shared latent size.
+    p1 = Dense(96, activation="relu")(b1)
+    p2 = Dense(96, activation="relu")(b2)
+    p3 = Dense(96, activation="relu")(b3)
+    p4 = Dense(96, activation="relu")(b4)
+
+    # Context-dependent branch gating.
+    gate = Dense(4, activation="softmax", name="branch_gate")(flat_in)
+    g1 = Lambda(lambda x: tf.expand_dims(x[:, 0], axis=-1))(gate)
+    g2 = Lambda(lambda x: tf.expand_dims(x[:, 1], axis=-1))(gate)
+    g3 = Lambda(lambda x: tf.expand_dims(x[:, 2], axis=-1))(gate)
+    g4 = Lambda(lambda x: tf.expand_dims(x[:, 3], axis=-1))(gate)
+
+    w1 = Multiply()([p1, g1])
+    w2 = Multiply()([p2, g2])
+    w3 = Multiply()([p3, g3])
+    w4 = Multiply()([p4, g4])
+
+    z = Concatenate()([w1, w2, w3, w4, flat_in])
+    z = LayerNormalization()(z)
+    z = Dense(224, activation="relu")(z)
+    z = Dropout(dropout)(z)
+    z = Dense(128, activation="relu")(z)
+    z = Dropout(dropout * 0.8)(z)
+    z = LossScaleLayer(name="loss_scales")(z)
+
+    # Residual autoregressive shortcut: predict deltas from latest known targets.
+    last_targets = Lambda(lambda x: x[:, -1, -2:], name="last_targets")(seq_in)
+    last_solar = Lambda(lambda x: x[:, 0:1])(last_targets)
+    last_wind = Lambda(lambda x: x[:, 1:2])(last_targets)
+
+    delta_solar = Dense(1, name="delta_solar")(z)
+    delta_wind = Dense(1, name="delta_wind")(z)
+
+    solar_reg = Add(name="solar_reg")([delta_solar, last_solar])
+    wind_reg = Add(name="wind_reg")([delta_wind, last_wind])
+
+    cls = Dense(96, activation="relu")(z)
+    cls = Dropout(dropout * 0.8)(cls)
+    solar_ext = Dense(1, activation="sigmoid", name="solar_ext")(cls)
+    wind_ext = Dense(1, activation="sigmoid", name="wind_ext")(cls)
+
+    model = Model(inputs=[seq_in, flat_in], outputs=[solar_reg, wind_reg, solar_ext, wind_ext], name="DP_STHPP")
+    return compile_mtl_model(model, lr=lr, cls_weight=cls_weight)

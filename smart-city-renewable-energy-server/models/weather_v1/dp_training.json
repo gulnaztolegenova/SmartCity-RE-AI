@@ -1,0 +1,9 @@
+{
+  "seconds": 356.2103832499997,
+  "epochs": 27,
+  "best_epoch": 20,
+  "parameter_count": 831728,
+  "tensorflow": "2.18.1",
+  "keras": "3.12.1",
+  "device": "CPU"
+}

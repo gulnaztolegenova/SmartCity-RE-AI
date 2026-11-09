@@ -1,0 +1,113 @@
+{
+  "x": {
+    "kind": "StandardScaler",
+    "columns": [
+      "temperature_solar",
+      "relative_humidity_solar",
+      "surface_irradiance_solar",
+      "toa_irradiance_solar",
+      "air_density_wind",
+      "wind_speed_wind",
+      "hour",
+      "dayofweek",
+      "month",
+      "season_code",
+      "kWh_solar_power_solar",
+      "kWh_wind_power_wind"
+    ],
+    "mean": [
+      3.99871269352707,
+      0.5829618050156246,
+      184.69670073033913,
+      344.37533495125643,
+      1.218086727811521,
+      6.185918564195776,
+      11.5,
+      2.9938824231572663,
+      4.397582811101164,
+      1.1047448522829006,
+      1020.2620243871187,
+      1441.5085108470646
+    ],
+    "scale": [
+      14.588786144016838,
+      0.48223056038290935,
+      235.25440891862607,
+      406.02952794817463,
+      0.07391895033433941,
+      2.566713127555972,
+      6.922186552431729,
+      1.9946791792799372,
+      2.2251781081282203,
+      1.1766699792951425,
+      1357.4297337745375,
+      1230.0828427474644
+    ],
+    "variance": [
+      212.8326811558577,
+      0.23254631336721476,
+      55344.63691565213,
+      164859.9775658175,
+      0.005464011218530536,
+      6.5880162791681585,
+      47.916666666666664,
+      3.978745028252884,
+      4.951417612893085,
+      1.384552240174431,
+      1842615.4821352114,
+      1513103.8000216833
+    ],
+    "n_features": 12,
+    "n_samples_seen": 134040
+  },
+  "y": {
+    "kind": "StandardScaler",
+    "columns": [
+      "kWh_solar_power_solar",
+      "kWh_wind_power_wind"
+    ],
+    "mean": [
+      1020.5663190541558,
+      1442.4360437350153
+    ],
+    "scale": [
+      1357.2813065383543,
+      1229.363123089103
+    ],
+    "variance": [
+      1842212.5450784625,
+      1511333.6884113932
+    ],
+    "n_features": 2,
+    "n_samples_seen": 5585
+  },
+  "extreme_thresholds_source_units": [
+    3403.9111328125,
+    3315.598876953125
+  ],
+  "extreme_quantile": 0.9,
+  "threshold_comparison": ">=",
+  "fit_sample_ids_sha256": "7b853060dfdd3a8eae197dc553732b02a12d8a840ce2ee0480b08cd3b12347e5",
+  "fit_scope": "inner chronological fit split only",
+  "context_rows": 24,
+  "horizon_rows": 1,
+  "sequence_feature_order": [
+    "temperature_solar",
+    "relative_humidity_solar",
+    "surface_irradiance_solar",
+    "toa_irradiance_solar",
+    "air_density_wind",
+    "wind_speed_wind",
+    "hour",
+    "dayofweek",
+    "month",
+    "season_code",
+    "kWh_solar_power_solar",
+    "kWh_wind_power_wind"
+  ],
+  "target_order": [
+    "kWh_solar_power_solar",
+    "kWh_wind_power_wind"
+  ],
+  "residual_semantics": "original constructor adds latest x-standardized targets to y-standardized delta; retained without reinterpretation"
+}
